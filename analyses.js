@@ -1,5 +1,5 @@
 /* ============================================================
-   PEAKSTATS — ANALİZLƏR (analyses.js)
+   DataAnaliz — ANALİZLƏR (analyses.js)
    Bu fayl "Analizlər" bölməsini işə salır: Filtr və Avtomatik
    Analiz nəticələrini "Kaydet" ilə saxlayır, bütün ziyarətçilər
    Analizlər tabında görür.
