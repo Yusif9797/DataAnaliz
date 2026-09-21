@@ -1,5 +1,5 @@
 /* ============================================================
-   PEAKSTATS — GÜNÜN MATÇLARI (today-matches.js)
+   DataAnaliz — GÜNÜN MATÇLARI (today-matches.js)
    bet365_odds_today.py skriptinin brauzer versiyası: günün
    matçlarını (seçilmiş liqalardan) Flashscore "feed"indən çəkir,
    hər biri üçün Bet365 açılış əmsallarını ayrıca sorğulayıb
