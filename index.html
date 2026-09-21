@@ -1,0 +1,2566 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PeakStats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<style>
+  :root{
+    --bg: #060b1a;
+    --bg-grad: none;
+    --navy: #0d1730;
+    --navy-2: #122043;
+    --navy-3: #182b56;
+    --card: #0f1b3a;
+    --line: #24365f66;
+    --line2: #2e4272;
+    --line-soft: #1a2a52;
+    --amber: #e8b64a;
+    --amber-2: #ffd873;
+    --amber-dim: #7a5f28;
+    --amber-bg: #2a2312;
+    --teal: #34d399;
+    --teal-dim: #123527;
+    --red: #ef4444;
+    --blue: #60a5fa;
+    --gold: #d4af37;
+    --gold-2: #f2cd6b;
+    --gold-3: #b8932c;
+    --btn-text: #0a0e1f;
+    --emerald: #34d399;
+    --plum: #a78bfa;
+    --text: #f5f7ff;
+    --text-dim: #b6bfe4;
+    --text-faint: #8891bd;
+    --input-bg: #0f1b3a;
+    --row-border: #1c2b52;
+    --row-hover: #1a2a54;
+    --row-alt: #0b1330;
+    --mono: 'JetBrains Mono','SF Mono',Consolas,monospace;
+    --sans: 'Inter',-apple-system,'Segoe UI',sans-serif;
+    --table-font: 'Sora', 'Inter', -apple-system, 'Segoe UI', sans-serif;
+    --display: 'Space Grotesk','Inter',-apple-system,sans-serif;
+    --shadow-lg: 0 16px 36px -14px rgba(0,0,0,.7);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,.35);
+    --shadow-glow: 0 0 0 1px rgba(212,175,55,.25), 0 6px 20px -8px rgba(212,175,55,.18);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth; max-width:100%;}
+  body{
+    margin:0; min-height:100vh; max-width:100%; overflow-x:hidden; background:var(--bg); background-image:var(--bg-grad);
+    color:var(--text); font-family:var(--sans); transition:background .25s, color .25s;
+    -webkit-font-smoothing:antialiased;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important;}
+  }
+  *, *::before, *::after{
+    transition: background-color .25s ease, border-color .25s ease, color .25s ease, box-shadow .25s ease, background .25s ease;
+  }
+  /* Cədvəldə çox sayda sətir/xana ola bildiyi üçün, tema keçidində HAMISININ
+     eyni anda animasiya olunması ciddi donmaya səbəb olur. Ona görə cədvəlin
+     gövdəsi (tbody) bu animasiyadan çıxarılır — ani (animasiyasız) dəyişir,
+     qalan bütün sayt isə yumşaq keçməyə davam edir. */
+  table.grid tbody, table.grid tbody *{
+    transition: none !important;
+  }
+  :focus-visible{outline:2px solid var(--amber); outline-offset:2px; border-radius:4px;}
+
+  /* ===== Topbar ===== */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; row-gap:10px;
+    padding:15px 26px; border-bottom:1px solid var(--line); background:linear-gradient(180deg, var(--navy), var(--navy-2));
+    position:sticky; top:0; z-index:40;
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--gold) 22%, transparent);
+  }
+  .brand{display:flex; align-items:center; gap:11px;}
+  .brand-ball{flex-shrink:0;}
+  .brand-text{display:flex; flex-direction:column; gap:1px;}
+  .brand .mark{
+    font-family:var(--display);
+    color:var(--text);
+    font-weight:700; font-size:20px; letter-spacing:.2px; line-height:1.1;
+  }
+  .brand .sub{
+    color:var(--text-faint); font-size:10px; font-family:var(--mono); text-transform:uppercase; letter-spacing:2.2px; line-height:1.1;
+  }
+  .brand .sub::before{content:'— '; color:var(--gold);}
+  .status{font-family:var(--mono); font-size:11px; color:var(--text-dim); display:flex; align-items:center; gap:14px;}
+  .status b{color:var(--teal);}
+  .live-dot{display:inline-flex; align-items:center; gap:6px; color:var(--teal); font-weight:600;}
+  .live-dot::before{content:''; width:6px; height:6px; border-radius:50%; background:var(--teal); box-shadow:0 0 0 0 color-mix(in srgb, var(--teal) 60%, transparent); animation:livePulse 2s ease-out infinite;}
+  @keyframes livePulse{
+    0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--teal) 55%, transparent);}
+    70%{box-shadow:0 0 0 6px transparent;}
+    100%{box-shadow:0 0 0 0 transparent;}
+  }
+  .ds-btn{
+    background:var(--navy-2); border:1px solid var(--line2); color:var(--text-dim);
+    border-radius:9px; padding:7px 11px; cursor:pointer; font-size:14px;
+    transition: background-color .25s ease, border-color .25s ease, color .25s ease, transform .15s ease;
+  }
+  .ds-btn:hover{border-color:var(--amber); color:var(--amber); transform:translateY(-1px);}
+
+  /* ===== Tabs ===== */
+  .tabs{display:flex; gap:2px; padding:0 26px; background:var(--navy-2); border-bottom:1px solid var(--line); overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab-btn{
+    padding:13px 22px; background:transparent; border:none; color:var(--text-faint);
+    font-family:var(--mono); font-size:12px; text-transform:uppercase; letter-spacing:1.2px;
+    cursor:pointer; border-bottom:2px solid transparent; transition:color .25s, border-color .25s, text-shadow .25s;
+    white-space:nowrap; flex-shrink:0;
+  }
+  .tab-btn:hover{color:var(--text-dim);}
+  .tab-btn.active{
+    color:var(--gold-2); border-bottom-color:var(--gold);
+  }
+  .saved-badge{
+    display:inline-block; background:var(--gold); color:var(--bg); font-weight:700;
+    font-size:10px; padding:1px 7px; border-radius:10px; margin-left:5px;
+  }
+  .tab-panel{display:none; position:relative;}
+  .tab-panel.active{display:block;}
+
+  /* ===== Toolbar ===== */
+  .toolbar{
+    display:flex; gap:10px; align-items:center; padding:14px 26px;
+    background:var(--navy-2); border-bottom:1px solid var(--line); flex-wrap:wrap;
+  }
+  .btn{
+    font-family:var(--mono); font-size:11.5px; text-transform:uppercase; letter-spacing:1.4px;
+    padding:10px 20px; border-radius:10px; border:none; cursor:pointer; font-weight:700;
+    transition:box-shadow .25s, transform .15s, border-color .25s, color .25s, background-color .25s;
+    display:inline-flex; align-items:center; gap:7px;
+    position:relative; overflow:hidden;
+  }
+  .btn-run{
+    background:var(--gold);
+    color:var(--bg);
+    box-shadow:0 1px 6px -2px color-mix(in srgb, var(--gold) 40%, transparent);
+    border:1px solid color-mix(in srgb, var(--gold) 60%, transparent);
+    font-weight:800;
+  }
+  .btn-run:hover{
+    background:var(--gold-2);
+    box-shadow:0 2px 10px -3px color-mix(in srgb, var(--gold) 45%, transparent);
+    transform:translateY(-1px);
+  }
+  .btn-run:active{transform:translateY(0); filter:brightness(.96);}
+  .btn-clear{
+    background:linear-gradient(160deg, var(--navy-3), var(--navy)); border:1px solid var(--line2); color:var(--text-dim);
+  }
+  .btn-clear:hover{color:var(--gold-2); border-color:color-mix(in srgb, var(--gold) 55%, var(--line2)); background:var(--navy-3); box-shadow:0 0 14px -4px color-mix(in srgb, var(--gold) 30%, transparent);}
+  .hint{font-family:var(--mono); font-size:11px; color:var(--text-faint); margin-left:auto;}
+  .bookie-badge{background:var(--navy-3); color:var(--gold-2); border:1px solid var(--line2); border-radius:8px; padding:9px 12px; font-family:var(--mono); font-size:12.5px; font-weight:700;}
+
+  /* ===== Scoreboard ===== */
+  .scoreboard{display:flex; gap:14px; padding:16px 26px; flex-wrap:wrap;}
+  .sb-card{
+    background:linear-gradient(160deg, var(--card), var(--navy-2)); border:1px solid var(--line); border-radius:12px;
+    padding:14px 20px; flex:1; min-width:150px; position:relative; overflow:hidden;
+    box-shadow:var(--shadow-sm); transition: background-color .25s ease, border-color .25s ease, color .25s ease, box-shadow .25s ease, background .25s ease, transform .15s ease;
+  }
+  .sb-card:hover{border-color:color-mix(in srgb, var(--gold) 35%, var(--line));}
+  .sb-card::before{content:''; position:absolute; top:0; left:0; width:3px; height:100%; background:linear-gradient(180deg, var(--gold-2), var(--gold-3));}
+  .sb-card .num{font-family:var(--mono); font-size:25px; font-weight:700; letter-spacing:-.02em;}
+  .sb-card .lbl{font-size:10px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1.3px; margin-top:4px; font-weight:600;}
+  .sb-card.green::before{background:linear-gradient(180deg, var(--text), var(--teal));}
+  .sb-card.green .num{color:var(--teal);}
+  .sb-card.amber .num{color:var(--gold-2);}
+
+  /* ===== Table — matches reference screenshot layout, follows dark/light theme for bg+text ===== */
+  .table-scroll{
+    overflow-x:auto; margin:0 26px 30px; border:1px solid var(--line2); border-radius:var(--radius);
+    box-shadow:var(--shadow-lg); background:var(--bg);
+  }
+  table.grid{border-collapse:separate; border-spacing:0; width:100%; min-width:1400px; font-family:var(--table-font); font-size:13px; background:var(--bg);}
+
+  .grid thead tr.cat-row th{
+    background:linear-gradient(180deg, var(--navy-3), var(--navy-2)); color:var(--gold-2); text-transform:uppercase;
+    font-family:var(--table-font); font-size:11.5px; letter-spacing:.6px; padding:11px 6px; border-bottom:2px solid var(--gold-3);
+    border-right:1px solid var(--line2);
+    text-align:center; position:sticky; top:0; z-index:3; font-weight:700;
+  }
+  .grid thead tr.sub-row th{
+    background:var(--navy-2); color:var(--text); font-family:var(--table-font); font-weight:600; font-size:12px;
+    padding:9px 7px; border-bottom:1px solid var(--line2); border-right:1px solid var(--line2);
+    text-align:center; white-space:nowrap; text-transform:uppercase; letter-spacing:.2px;
+    position:sticky; top:34px; z-index:2;
+  }
+  .grid thead tr.input-row td{
+    background:var(--bg); border-bottom:2px solid var(--line2); border-right:1px solid var(--line2); padding:7px;
+    position:sticky; top:66px; z-index:2;
+  }
+  .grid thead tr.input-row td.meta-cell{background:var(--bg);}
+  .grid thead input{
+    width:100%; min-width:56px; background:var(--input-bg); border:1px solid var(--line2); color:var(--text);
+    font-family:var(--table-font); font-size:12.5px; font-weight:400; text-align:center; padding:6px 4px;
+    border-radius:4px; transition: background-color .25s ease, border-color .25s ease, color .25s ease, box-shadow .25s ease;
+  }
+  .grid thead input::placeholder{color:var(--text-faint); font-weight:400;}
+  .grid thead input:focus{outline:none; border-color:var(--text-dim); box-shadow:0 0 0 3px color-mix(in srgb, var(--text) 12%, transparent);}
+  .grid thead input.filled{background:var(--row-hover); color:var(--text); border-color:var(--text-dim); font-weight:700;}
+  #league-filter{text-align:left; font-size:12px !important;}
+
+  .grid tbody td{
+    padding:7px 9px; border-bottom:1px solid var(--row-border); border-right:1px solid var(--row-border);
+    color:var(--text); white-space:nowrap; font-family:var(--table-font); font-weight:400;
+  }
+  .grid tbody tr:nth-child(even) td{background:var(--row-alt);}
+  .grid tbody tr:hover td{background:var(--row-hover);}
+  .today-pinned-row td{background:color-mix(in srgb, var(--teal) 14%, var(--navy-2)) !important; border-bottom:2px solid var(--teal) !important;}
+  .today-pinned-row:hover td{background:color-mix(in srgb, var(--teal) 22%, var(--navy-2)) !important;}
+  .grid tbody td.league{color:var(--text); max-width:150px; overflow:hidden; text-overflow:ellipsis; cursor:pointer;}
+  .grid tbody td.league:hover{color:var(--text); background:var(--row-hover);}
+  .grid tbody td.team-cell{cursor:pointer;}
+  .grid tbody td.team-cell:hover{color:var(--text); background:var(--row-hover);}
+  .grid tbody td.fillable{cursor:pointer; padding:0;}
+  .grid tbody td.fillable.res-score{padding:7px 9px;}
+  .grid tbody td.fillable.res-score:hover{color:var(--text);}
+  .grid tbody td.fillable.pill-cell{padding:7px 9px;}
+  .grid tbody td.fillable:hover{background:var(--row-hover);}
+  .grid tbody td.fillable:hover .odd-pair .oa,
+  .grid tbody td.fillable:hover .odd-pair .ok,
+  .grid tbody td.fillable:hover .odd-pair .oarrow{color:var(--text) !important;}
+
+  .an-table{border-collapse:separate; border-spacing:0; width:100%; font-family:var(--table-font); font-size:13px; background:var(--bg); border:1px solid var(--line2); border-radius:var(--radius); overflow:hidden;}
+  .an-table thead th{background:var(--navy-3); color:var(--text); text-transform:uppercase; font-family:var(--table-font); font-size:12px; letter-spacing:.3px; font-weight:700; padding:10px 8px; border-bottom:1px solid var(--line2); border-right:1px solid var(--line2); text-align:center;}
+  .an-table tbody td{padding:7px 9px; border-bottom:1px solid var(--row-border); border-right:1px solid var(--row-border); color:var(--text); font-family:var(--table-font); text-align:center;}
+  .an-table tbody tr:hover td{background:var(--row-hover);}
+
+
+  /* ===== Result pills — full-cell colored fill, matches reference screenshot ===== */
+  .pill{
+    display:flex; align-items:center; justify-content:center;
+    margin:-7px -9px; padding:7px 6px; min-height:32px;
+    font-family:var(--table-font); font-weight:400; font-size:13px; letter-spacing:0;
+  }
+  .pill.home{background:#1f7a45; color:#fff;}
+  .pill.draw{background:#b8790f; color:#fff;}
+  .pill.away{background:#a3410e; color:#fff;}
+  .pill.over{background:#12786a; color:#fff;}
+  .pill.under{background:#96560f; color:#fff;}
+  .pill.yes{background:#12786a; color:#fff;}
+  .pill.no{background:#992f4b; color:#fff;}
+  .res-score{font-family:var(--table-font); font-weight:700; color:var(--text); text-align:center; font-variant-numeric:tabular-nums;}
+
+  /* ===== Empty / loading ===== */
+  .empty-state{
+    text-align:center; padding:70px 20px; color:var(--text-faint); font-family:var(--mono);
+    margin:0 26px;
+  }
+  .empty-state .big{font-size:14.5px; margin-bottom:8px; color:var(--text-dim); font-weight:600;}
+
+  .loading{display:flex; align-items:center; justify-content:center; height:100vh; flex-direction:column; gap:18px;}
+  .spinner{width:32px; height:32px; border:3px solid var(--line2); border-top-color:var(--amber); border-radius:50%; animation:spin 0.8s linear infinite;}
+  .loading .spinner{width:38px; height:38px; border:3px solid var(--line2); border-top-color:var(--amber); border-radius:50%; animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading .txt{font-family:var(--mono); color:var(--text-dim); font-size:13px;}
+  ::-webkit-scrollbar{width:10px; height:10px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--line2); border-radius:6px; border:2px solid var(--bg);}
+  ::-webkit-scrollbar-thumb:hover{background:var(--text-faint);}
+
+  .auto-wrap{padding:22px 26px;}
+  .auto-grid{display:grid; grid-template-columns: 420px 1fr; gap:20px;}
+  @media (max-width:900px){ .auto-grid{grid-template-columns:1fr;} }
+
+  /* ===== Mobil: kənar boşluqları daralt, sıra düzülüşlərini yığcamlaşdır ===== */
+  @media (max-width:640px){
+    .topbar{ padding:12px 14px; }
+    .tabs{ padding:0 14px; }
+    .tab-btn{ padding:12px 14px; font-size:11px; letter-spacing:.8px; }
+    .toolbar{ padding:12px 14px; gap:8px; }
+    .scoreboard{ padding:12px 14px; gap:10px; }
+    .sb-card{ min-width:130px; padding:12px 14px; }
+    .table-scroll{ margin:0 14px 20px; }
+    .empty-state{ margin:0 14px; }
+    .promo-hero{ margin:14px 14px 0; padding:22px 16px 18px; }
+    #tab-about > div[style*="padding:26px"]{ padding:20px 16px 32px !important; }
+    .an-head{ gap:8px; padding:12px 12px; }
+    .an-combo, .an-pred{ max-width:150px; }
+    .vip-admin-panel .row{ flex-wrap:wrap; }
+    .vip-admin-panel .row button{ min-width:100px; }
+  }
+  textarea#autoText{
+    width:100%; height:420px; background:var(--navy); border:1px solid var(--line2); color:var(--text);
+    font-family:var(--mono); font-size:16px; padding:12px; border-radius:10px; resize:vertical;
+  }
+  textarea#autoText:focus{outline:none; border-color:var(--amber);}
+  .auto-opts{display:flex; gap:14px; align-items:center; margin:12px 0; font-family:var(--mono); font-size:11px; color:var(--text-dim); flex-wrap:wrap;}
+  .auto-opts label{display:flex; align-items:center; gap:6px;}
+  .auto-opts select, .auto-opts input[type=number]{
+    background:var(--navy); border:1px solid var(--line2); color:var(--text);
+    font-family:var(--mono); padding:4px 8px; border-radius:6px;
+  }
+  .mode-tabs{display:flex; gap:8px; margin:14px 0 4px;}
+  .mode-tab{
+    flex:1; text-align:center; padding:10px; border:1px solid var(--line2); border-radius:9px;
+    font-family:var(--mono); font-size:11px; color:var(--text-dim); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .mode-tab input{accent-color:var(--amber);}
+  .mode-tab:has(input:checked){border-color:var(--amber); color:var(--amber); background:var(--amber-bg);}
+
+  .input-wrap{position:relative;}
+  .input-wrap .clear-x{
+    position:absolute; right:4px; top:50%; transform:translateY(-50%);
+    cursor:pointer; color:var(--red); font-size:15px; font-weight:700; display:none;
+    line-height:1; padding:2px 4px;
+  }
+  .input-wrap .clear-x:hover{color:#c0392b;}
+  .input-wrap input.filled{padding-right:22px;}
+
+  .odd-pair{display:flex; align-items:center; gap:5px; justify-content:center; font-family:var(--table-font); padding:7px 9px; font-variant-numeric:tabular-nums;}
+  .odd-pair .oa{color:var(--text-dim); font-size:11.5px;}
+  .odd-pair .oarrow{font-size:10px; color:var(--text-dim);}
+  .odd-pair .ok{font-weight:700; font-size:12.5px; color:var(--text);}
+  .odd-pair.up .ok, .odd-pair.up .oarrow{color:var(--teal);}
+  .odd-pair.down .ok, .odd-pair.down .oarrow{color:#ff8a8a;}
+  .odd-pair.flat .ok{color:var(--text);}
+
+  .progress-wrap{margin:14px 0; display:none;}
+  .progress-wrap.show{display:block;}
+  .progress-track{height:8px; background:var(--navy); border-radius:5px; overflow:hidden; border:1px solid var(--line2);}
+  .progress-fill{height:100%; background:linear-gradient(90deg, var(--amber-dim), var(--amber)); width:0%; transition:width .2s, background .25s;}
+  .progress-txt{font-family:var(--mono); font-size:11px; color:var(--text-dim); margin-top:6px; display:flex; justify-content:space-between;}
+
+  .parsed-preview{
+    background:var(--navy); border:1px solid var(--line2); border-radius:10px; padding:12px; margin-bottom:14px;
+    font-family:var(--mono); font-size:11px; color:var(--text-dim); max-height:100px; overflow-y:auto;
+  }
+  .parsed-preview b{color:var(--amber);}
+  .parsed-chip{display:inline-block; background:var(--navy-3); color:var(--text); padding:2px 8px; border-radius:5px; margin:2px;}
+
+  .auto-panel{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px; margin-bottom:16px; box-shadow:var(--shadow-sm);}
+  .auto-panel h3{margin:0 0 14px; font-size:12px; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-dim); font-family:var(--mono);}
+
+  /* ===== Hero score — the single number this tool exists to produce ===== */
+  .hero-score{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:18px;
+    background:radial-gradient(420px 140px at 0% 0%, color-mix(in srgb, var(--teal) 10%, transparent), transparent), var(--navy);
+    border:1px solid var(--teal-dim); border-radius:12px; padding:20px 22px;
+  }
+  .hero-score-num{font-family:var(--display); font-size:46px; font-weight:700; color:var(--teal); line-height:1; letter-spacing:-.01em;}
+  .hero-score-lbl{color:var(--text-faint); font-size:10.5px; text-transform:uppercase; letter-spacing:1.2px; margin-top:8px; display:flex; align-items:center; gap:8px;}
+  .conf-badge{font-family:var(--mono); font-size:9.5px; letter-spacing:.6px; padding:2px 7px; border-radius:20px; text-transform:uppercase; font-weight:700;}
+  .conf-badge.high{background:var(--text); color:var(--bg);}
+  .conf-badge.mid{background:var(--line2); color:var(--text);}
+  .conf-badge.low{background:transparent; color:var(--text-dim); border:1px solid var(--line2);}
+  .hero-score-sub{display:flex; gap:26px;}
+  .hs-num{font-family:var(--display); font-size:22px; font-weight:700; color:var(--text);}
+  .hs-lbl{color:var(--text-faint); font-size:10px; text-transform:uppercase; letter-spacing:1.1px; margin-top:5px;}
+
+  .dist-row{display:flex; align-items:center; gap:10px; margin-bottom:7px; font-family:var(--mono); font-size:12px;}
+  .dist-row .lbl{width:50px; font-weight:700;}
+  .dist-row .track{flex:1; height:18px; background:var(--bg); border-radius:5px; overflow:hidden;}
+  .dist-row .fill{height:100%; background:linear-gradient(90deg, var(--amber-dim), var(--amber));}
+  .dist-row .pct{width:50px; text-align:right; color:var(--text-dim);}
+  .combo-table{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:11px;}
+  .combo-table th{text-align:left; padding:6px 8px; color:var(--text-dim); border-bottom:1px solid var(--line2); font-size:10px; text-transform:uppercase;}
+  .combo-table td{padding:6px 8px; border-bottom:1px solid var(--row-border);}
+  .combo-table .cscore{color:var(--amber); font-weight:700;}
+  .combo-row{cursor:pointer;}
+  .combo-row:hover td{background:var(--navy-2);}
+  .combo-row.selected td{background:var(--amber-bg); border-color:var(--amber-dim);}
+
+</style>
+</head>
+<body>
+
+<div id="loading" class="loading">
+  <div class="spinner"></div>
+  <div class="txt">Zəhmət olmasa gözləyin...</div>
+</div>
+
+<div id="app" style="display:none;">
+  <div class="topbar">
+    <div class="brand">
+      <svg class="brand-ball" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3.2" y="3.2" width="17.6" height="17.6" rx="4.2" stroke="var(--text)" stroke-width="1.7"/>
+        <path d="M3.2 14.9h4.15l1.9-3.35 2.9 5.7 3.05-7.6 2.2 4.55 1.95-2.05h3.25" stroke="var(--text)" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+      </svg>
+      <div class="brand-text">
+        <span class="mark">PEAKSTATS</span>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div id="authWidget"></div>
+      <div class="status"><span class="live-dot">baza</span> <b>hazır</b></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-about-btn" onclick="switchTab('about')">Haqqında</button>
+    <button class="tab-btn" id="tab-manual-btn" onclick="switchTab('manual')">Filtr</button>
+    <button class="tab-btn" id="tab-analyses-btn" onclick="switchTabGated('analyses')">Analizlər</button>
+    <button class="tab-btn" id="tab-admin-btn" onclick="switchTabAdmin()" style="display:none;">Admin Panel</button>
+  </div>
+
+  <style>
+    .promo-hero{ position:relative; background:linear-gradient(160deg, #0a0f1f 0%, #0d1730 55%, #120d05 100%); border:1px solid var(--line2); border-radius:18px; padding:28px 22px 24px; margin:20px 20px 0; overflow:hidden; box-shadow:var(--shadow-lg); }
+    .promo-hero::before{ content:""; position:absolute; inset:0; background:radial-gradient(circle at 85% 0%, rgba(232,182,74,.16), transparent 55%); pointer-events:none; }
+    .promo-badge{ position:relative; display:inline-block; background:var(--amber-bg); border:1px solid var(--gold-3); color:var(--gold-2); font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; padding:8px 14px; border-radius:999px; margin-bottom:18px; }
+    .promo-badge span{ display:block; color:var(--text-dim); font-weight:500; text-transform:none; margin-top:2px; font-size:10px; }
+    .promo-logo{ position:relative; font-family:var(--display); font-size:30px; font-weight:800; letter-spacing:.5px; margin-bottom:4px; }
+    .promo-logo-text{ background:linear-gradient(90deg, var(--gold-2), var(--gold-3)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .promo-tagline{ position:relative; font-family:var(--mono); font-size:10.5px; letter-spacing:1.5px; color:var(--text-faint); text-transform:uppercase; margin-bottom:22px; }
+    .promo-headline{ position:relative; font-family:var(--display); font-size:22px; font-weight:700; line-height:1.35; color:var(--text); margin-bottom:26px; }
+    .promo-headline-gold{ background:linear-gradient(90deg, var(--amber-2), var(--gold-3)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .promo-features{ position:relative; display:flex; flex-direction:column; gap:16px; margin-bottom:24px; }
+    .promo-feat{ display:flex; gap:14px; align-items:flex-start; }
+    .promo-feat-icon{ flex-shrink:0; width:38px; height:38px; border-radius:10px; background:var(--navy-3); border:1px solid var(--line2); display:flex; align-items:center; justify-content:center; font-size:17px; }
+    .promo-feat-title{ font-weight:700; font-size:13.5px; color:var(--text); }
+    .promo-feat-sub{ font-size:12px; color:var(--text-dim); margin-top:2px; }
+    .promo-footer{ position:relative; border-top:1px solid var(--line2); padding-top:18px; display:flex; flex-direction:column; gap:8px; font-size:12px; color:var(--text-dim); }
+    .promo-footer b{ color:var(--gold-2); }
+  </style>
+
+  <div id="tab-about" class="tab-panel active">
+    <div class="promo-hero">
+      <div class="promo-badge">👑 Professional Seçim<span>Qələbə sənin əlində!</span></div>
+      <div class="promo-logo">⚽ <span class="promo-logo-text">PEAKSTATS</span></div>
+      <div class="promo-tagline">Professional Futbol Analiz Platforması</div>
+      <div class="promo-headline">Dəqiq məlumat,<br>doğru analiz,<br><span class="promo-headline-gold">yüksək qələbə!</span></div>
+      <div class="promo-features">
+        <div class="promo-feat"><div class="promo-feat-icon">🎯</div><div><div class="promo-feat-title">Dəqiq Əmsal Analizi</div><div class="promo-feat-sub">Bütün bazarları dərindən analiz et</div></div></div>
+        <div class="promo-feat"><div class="promo-feat-icon">📈</div><div><div class="promo-feat-title">Günün Matçları</div><div class="promo-feat-sub">Bir toxunuşla tam analiz</div></div></div>
+        <div class="promo-feat"><div class="promo-feat-icon">🛡️</div><div><div class="promo-feat-title">Etibarlı Məlumat</div><div class="promo-feat-sub">Güvənilir mənbələrdən data</div></div></div>
+        <div class="promo-feat"><div class="promo-feat-icon">⚡</div><div><div class="promo-feat-title">Sürətli və Sadə</div><div class="promo-feat-sub">İstifadəsi asan, sürətli sistem</div></div></div>
+        <div class="promo-feat"><div class="promo-feat-icon">⭐</div><div><div class="promo-feat-title">Proqnoz &amp; Təhlil</div><div class="promo-feat-sub">Yüksək dəqiqlikli təhlillər</div></div></div>
+      </div>
+      <div class="promo-footer">
+        <div>🌐 <b>İstənilən yerdə, istənilən cihazda!</b></div>
+        <div>💻📱 Responsive dizayn — mobil və masaüstü dəstəyi</div>
+      </div>
+    </div>
+
+    <div style="padding:26px 26px 40px; max-width:720px;">
+      <h2 style="font-family:var(--display); font-size:22px; color:var(--gold-2); margin:0 0 6px;">🎯 PeakStats haqqında</h2>
+      <div style="color:var(--text-dim); font-size:13.5px; line-height:1.9;">
+        <p>PeakStats — futbol matçlarının açılış əmsallarını <b>keçmiş yüz minlərlə bitmiş matçın</b> real əmsal və nəticə bazası ilə müqayisə edən analiz platformasıdır. Fikir sadədir: eyni (və ya çox yaxın) əmsal mənzərəsi ilə bitmiş keçmiş matçlar tarixən əksər hallarda hansı skorlarla nəticələnib — bunu göstərir.</p>
+
+        <div style="font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-faint); margin:20px 0 8px;">Bölmələr</div>
+        <p><b style="color:var(--text);">Filtr</b> — Bazarlara (MS1X2, Üst/Alt, KG Var/Yok, Asian Handicap və s.) sarı qutucuqlara əmsal yazıb bazadakı bütün matçlar arasından dəqiq uyğun gələnləri tapırsan. Günün çəkilmiş matçları da elə bu cədvəlin başında görünür — hər birinin yanındakı sarı <b>Analiz et</b> düyməsi o matçın bütün açılış əmsallarını avtomatik yoxlayıb ən güclü tarixi kombinasiyanı tapır. <b>Toplu Analiz</b> isə saxladığın bir bazar filtrini günün BÜTÜN matçlarına eyni anda tətbiq edir.</p>
+        <p><b style="color:var(--text);">Analizlər</b> — Saxlanılan analizləri adı və kombinasiyası ilə görə, geri qayıdıb baxa bilərsən.</p>
+
+        <div style="font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-faint); margin:20px 0 8px;">Qeyd</div>
+        <p>Bura göstərilən nəticələr tarixi statistik uyğunluğa əsaslanır, mərc tövsiyəsi deyil — son qərar həmişə sənindir.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-manual" class="tab-panel">
+  <div class="toolbar">
+    <button class="btn btn-clear" onclick="clearAll()">Təmizlə</button>
+    <button class="btn" id="manualSaveBtn" style="display:none; background:var(--navy-3); color:var(--gold-2); border:1px solid var(--line2);" onclick="saveAnalysisManual()">💾 Kaydet</button>
+    <span class="bookie-badge">🎯 Bet365</span>
+    <span id="bookieStatus" style="font-family:var(--mono); font-size:11.5px; color:var(--amber); display:none;">Yüklənir...</span>
+    <select id="todayDaySelect" style="display:none; background:var(--navy-3); color:var(--teal); border:1px solid var(--line2); border-radius:8px; font-family:var(--mono); font-size:12px; padding:0 8px; height:34px;"></select>
+    <button class="btn" id="todayMatchesBtn" style="display:none; background:var(--navy-3); color:var(--teal); border:1px solid var(--line2);" onclick="runTodayMatchesFetch()">🔄 Seçilmiş günün matçlarını çək</button>
+    <button class="btn" id="todayClearBtn" style="display:none; background:var(--navy-3); color:var(--red); border:1px solid var(--line2);" onclick="todayClearStored()">🗑 Çəkilən matçları sil</button>
+    <button class="btn" style="background:var(--navy-3); color:var(--gold-2); border:1px solid var(--line2);" onclick="openBulkAnalysisModal()">📊 Toplu Analiz</button>
+    <div class="hint">Sarı qutucuqlara Açılış əmsalını yaz → Filtrlə. Cədvəldə hər xana Açılış→Qapanış göstərir.</div>
+  </div>
+  <div class="scoreboard" id="scoreboard"></div>
+  <div id="todayMatchesArea"></div>
+  <div id="bulkResultsArea"></div>
+  <div id="autoResultsArea"></div>
+  <div id="resultsArea">
+    <div class="empty-state">
+      <div class="big">Cədvəldəki sarı qutucuqlara əmsalları yaz</div>
+      <div>Sonra "Filtrlə" düyməsinə bas</div>
+    </div>
+  </div>
+  </div>
+
+  <div id="tab-analyses" class="tab-panel">
+    <div class="toolbar">
+      <div class="hint">Bura yadda saxladığın bütün analizlər gəlir — hər kəs görə bilər. Adı və kombinasiyanı gör, göz işarəsinə bas ki cədvəl açılsın.</div>
+      <button id="bulkDeleteBtn" class="btn" style="display:none; background:var(--red); color:#fff; border:none;" onclick="bulkDeleteAnalyses()">🗑 Seçilənləri Sil (<span id="bulkDeleteCount">0</span>)</button>
+    </div>
+    <div id="analysesListArea" style="padding:18px 26px;">
+      <div class="empty-state"><div class="big">Yüklənir...</div></div>
+    </div>
+  </div>
+
+  <div id="tab-admin" class="tab-panel">
+    <div class="toolbar">
+      <div class="hint">Admin Panel — VIP təyin etmə və idarəetmə paneli. Yalnız admin şifrəsi ilə açılır.</div>
+    </div>
+    <div id="adminPanelArea" style="padding:18px 26px;"></div>
+  </div>
+</div>
+
+
+<script>
+const BET365_GROUPS = [
+  {title:'MS 1X2', fields:[['MS1','1'],['MSX','X'],['MS2','2']]},
+  {title:'İY 1X2', fields:[['IY1','1'],['IYX','X'],['IY2','2']]},
+  {title:'2Y 1X2', fields:[['IIY1','1'],['IIYX','X'],['IIY2','2']]},
+  {title:'Alt / Üst', fields:[['UST1_5','1.5Ü'],['ALT1_5','1.5A'],['UST2_5','2.5Ü'],['ALT2_5','2.5A'],['UST3_5','3.5Ü'],['ALT3_5','3.5A']]},
+  {title:'Asya Handikap', fields:[['AHm05_1','-0.5(1)'],['AHm05_2','-0.5(2)'],['AH0_1','0(1)'],['AH0_2','0(2)'],['AHp05_1','+0.5(1)'],['AHp05_2','+0.5(2)']]},
+  {title:'KG Var/Yok', fields:[['KGVAR','Var'],['KGYOK','Yok'],['IKGVAR','İY-Var'],['IKGYOK','İY-Yok']]},
+  {title:'Çifte Şans', fields:[['DC1X','1X'],['DC12','12'],['DCX2','X2']]},
+  {title:'İY Çifte Şans', fields:[['IDC1X','1X'],['IDC12','12'],['IDCX2','X2']]},
+  {title:'Avropa Handikap (-1)', fields:[['EH1','1'],['EHX','X'],['EH2','2']]},
+  {title:'HT/FT', fields:[['HTFT11','1/1'],['HTFT1X','1/X'],['HTFT12','1/2'],['HTFTX1','X/1'],['HTFTXX','X/X'],['HTFTX2','X/2'],['HTFT21','2/1'],['HTFT2X','2/X'],['HTFT22','2/2']]},
+];
+const BOOKIES = {
+  // Bet365 datası ayrı bir fayldan (bet365-data.bin) fetch olunub gzip açılır —
+  // əvvəllər HTML-ə birbaşa basdırılmış base64 blok idi, sayt ölçüsünü
+  // kiçiltmək üçün ayrı fayla çıxarıldı.
+  bet365: {key:'bet365', label:'Bet365', groups: BET365_GROUPS, type:'fetch', parts:['bet365-data.bin']},
+};
+let ACTIVE_BOOKIE = 'bet365';
+let GROUPS = BET365_GROUPS; // aktiv bukmekerin bazar siyahısı (seçim dəyişəndə yenilənir)
+const DB_CACHE = {}; // bukmeker açarına görə decode olunmuş DB keşi
+let DB = null;
+
+// Decodes the compact binary DB format (dictionary-encoded columns + same/diff
+// bit-flags between opening (oddsA) and closing (oddsK) odds) back into the
+// same {meta, oddsA, oddsK} shape the rest of the app expects.
+function decodeCompactDB(buf){
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  let off = 0;
+  const hlen = dv.getUint32(off, true); off += 4;
+  const header = JSON.parse(new TextDecoder('utf-8').decode(buf.subarray(off, off+hlen)));
+  off += hlen;
+  const n = header.n, keys = header.keys;
+  const idxBytesMap = header.idxBytes || {}; // per-key index width; absent = 1 byte (Bet365 default)
+
+  function readU16(count){
+    const arr = new Uint16Array(count);
+    for(let i=0;i<count;i++){ arr[i] = dv.getUint16(off, true); off += 2; }
+    return arr;
+  }
+  function readU8(count){
+    const arr = buf.subarray(off, off+count);
+    off += count;
+    return arr;
+  }
+  function readIdxArr(count, bytesize){
+    if(bytesize === 2) return readU16(count);
+    return readU8(count);
+  }
+
+  const leagueIdx = readU16(n), homeIdx = readU16(n), awayIdx = readU16(n);
+  const iyIdx = readU8(n), msIdx = readU8(n);
+
+  const oddsAIdx = {};
+  for(const k of keys) oddsAIdx[k] = readIdxArr(n, idxBytesMap[k] || 1);
+
+  const nbytes = Math.ceil(n/8);
+  const flagBits = {};
+  for(const k of keys) flagBits[k] = readU8(nbytes);
+
+  const oddsA = {}, oddsK = {};
+  for(const k of keys){
+    const bits = flagBits[k];
+    let diffCount = 0;
+    for(let i=0;i<n;i++){ if(!((bits[i>>3] >> (i & 7)) & 1)) diffCount++; }
+    const diffs = readIdxArr(diffCount, idxBytesMap[k] || 1);
+    const dlA = header.oddsA_d[k], dlK = header.oddsK_d[k];
+    const aIdxArr = oddsAIdx[k];
+    const aArr = new Array(n), kArr = new Array(n);
+    let di = 0;
+    for(let i=0;i<n;i++){
+      const aVal = dlA[aIdxArr[i]];
+      aArr[i] = aVal;
+      kArr[i] = ((bits[i>>3] >> (i & 7)) & 1) ? aVal : dlK[diffs[di++]];
+    }
+    oddsA[k] = aArr; oddsK[k] = kArr;
+  }
+
+  const md = header.meta_d;
+  const meta = {
+    league: Array.from(leagueIdx, i => md.league[i]),
+    home:   Array.from(homeIdx,   i => md.home[i]),
+    away:   Array.from(awayIdx,   i => md.away[i]),
+    iy:     Array.from(iyIdx,     i => md.iy[i]),
+    ms:     Array.from(msIdx,     i => md.ms[i]),
+  };
+
+  return { meta, oddsA, oddsK };
+}
+
+// Performans üçün: kiçik hərflərə çevrilmiş liqa/ev/qonaq massivləri və hər
+// matçın nəticə (Over/Under, K/G, skor) hesablamaları BİR DƏFƏ, məlumat
+// yüklənəndə hazırlanır. Bundan sonra runFilter() və rowHtml() hər yazışda
+// bunları yenidən hesablamır, sadəcə hazır massivdən oxuyur.
+function precomputeDerivedData(onDone){
+  const n = DB.meta.ms.length;
+  DB.meta.leagueLC = new Array(n);
+  DB.meta.homeLC = new Array(n);
+  DB.meta.awayLC = new Array(n);
+  DB.resultCache = new Array(n);
+  const CHUNK = 25000;
+  let i = 0;
+  function step(){
+    const end = Math.min(i + CHUNK, n);
+    for(; i<end; i++){
+      DB.meta.leagueLC[i] = (DB.meta.league[i] || '').toLocaleLowerCase('tr');
+      DB.meta.homeLC[i] = (DB.meta.home[i] || '').toLocaleLowerCase('tr');
+      DB.meta.awayLC[i] = (DB.meta.away[i] || '').toLocaleLowerCase('tr');
+      DB.resultCache[i] = computeResultRowRaw(i);
+    }
+    if(i < n){
+      setTimeout(step, 0);
+    } else if(onDone){
+      onDone();
+    }
+  }
+  step();
+}
+
+// Bukmekerin xam (sıxılmış) baytlarını qaytarır: 'inline' üçün HTML-ə basdırılmış
+// script tag-dən, 'fetch' üçün isə ayrı fayllardan (25MB limitinə görə bölünmüş
+// hissələr) yüklənib bir-birinə calanır.
+async function loadBookieBytes(bookie){
+  if(bookie.type === 'inline'){
+    const el = document.getElementById(bookie.blobId);
+    if(!el) throw new Error('Data blob tapılmadı: #' + bookie.blobId);
+    const b64 = el.textContent.trim();
+    const binStr = atob(b64);
+    const bytes = new Uint8Array(binStr.length);
+    for(let i=0;i<binStr.length;i++) bytes[i] = binStr.charCodeAt(i);
+    return bytes;
+  }
+  const buffers = await Promise.all(bookie.parts.map(p => fetch(p).then(r => {
+    if(!r.ok) throw new Error(p + ' yüklənmədi (HTTP ' + r.status + ')');
+    return r.arrayBuffer();
+  })));
+  let total = 0;
+  for(const b of buffers) total += b.byteLength;
+  const merged = new Uint8Array(total);
+  let off = 0;
+  for(const b of buffers){ merged.set(new Uint8Array(b), off); off += b.byteLength; }
+  return merged;
+}
+
+async function decodeBookie(bookie){
+  const bytes = await loadBookieBytes(bookie);
+  if(typeof pako === 'undefined') throw new Error('pako kitabxanası yüklənmədi (internet/CDN problemi)');
+  const inflated = pako.inflate(bytes); // raw bytes (compact binary format, not JSON string)
+  return decodeCompactDB(inflated);
+}
+
+function updateBookieLabel(statusText){
+  const sel = document.getElementById('bookieSelect');
+  const status = document.getElementById('bookieStatus');
+  if(sel){
+    sel.value = ACTIVE_BOOKIE;
+    sel.disabled = !!statusText;
+  }
+  if(status){
+    if(statusText){ status.textContent = statusText; status.style.display = 'inline'; }
+    else status.style.display = 'none';
+  }
+}
+
+// Aktiv bukmekeri dəyişir: keşdə varsa dərhal, yoxdursa fetch/decode edib keşləyir.
+// Həm Filtr cədvəli (GROUPS/DB), həm də Avtomatik Analiz mühərriki (DB.oddsA)
+// bu funksiyadan sonra seçilmiş bukmekerin datasına görə işləyəcək.
+let BOOKIE_SWITCHING = false;
+async function selectBookie(key){
+  const bookie = BOOKIES[key];
+  if(!bookie || key === ACTIVE_BOOKIE || BOOKIE_SWITCHING){ updateBookieLabel(); return; }
+
+  const finish = () => {
+    ACTIVE_BOOKIE = key;
+    DB = DB_CACHE[key];
+    GROUPS = bookie.groups;
+    BOOKIE_SWITCHING = false;
+    updateBookieLabel();
+    buildHeader();
+    populateLeagueFilter();
+    if(typeof runFilter === 'function') runFilter();
+  };
+
+  if(DB_CACHE[key]){ finish(); return; }
+
+  BOOKIE_SWITCHING = true;
+  updateBookieLabel('Yüklənir...');
+  try{
+    const decoded = await decodeBookie(bookie);
+    const prevDB = DB;
+    DB = decoded; // precomputeDerivedData qlobal DB üzərində işləyir
+    await new Promise(resolve => precomputeDerivedData(resolve));
+    DB_CACHE[key] = decoded;
+    DB = prevDB; // finish() özü düzgün DB-ni təyin edəcək
+    finish();
+  } catch(err){
+    console.error('Bukmeker datası yüklənərkən xəta:', err);
+    BOOKIE_SWITCHING = false;
+    updateBookieLabel();
+    alert((bookie.label) + ' datası yüklənmədi: ' + err.message);
+  }
+}
+
+async function loadData(){
+  try{
+    DB_CACHE.bet365 = await decodeBookie(BOOKIES.bet365);
+    DB = DB_CACHE.bet365;
+    GROUPS = BET365_GROUPS;
+    ACTIVE_BOOKIE = 'bet365';
+    precomputeDerivedData(() => {
+      DB_CACHE.bet365 = DB;
+      document.getElementById('loading').style.display='none';
+      document.getElementById('app').style.display='block';
+      updateBookieLabel();
+      buildHeader();
+      populateLeagueFilter();
+    });
+  } catch(err){
+    console.error('loadData xətası:', err);
+    document.getElementById('loading').style.display='none';
+    document.getElementById('app').style.display='block';
+    const banner = document.createElement('div');
+    banner.style.cssText = 'background:var(--amber-bg); border-bottom:1px solid var(--amber-dim); color:var(--amber); font-family:var(--mono); font-size:12px; padding:10px 22px; text-align:center;';
+    banner.textContent = '⚠ Məlumat bazası yüklənmədi (internet/CDN problemi). Giriş/Qeydiyyat işləyir, amma matç cədvəli görünmür. Səhifəni yeniləyin.';
+    document.getElementById('app').prepend(banner);
+  }
+}
+
+
+const RESULT_COLS = ['1Y/0.5','1Y/1.5','MS/1.5','MS/2.5','MS/3.5','K/G','1Y/SKOR','2Y/SKOR','SKOR','1Y','MS'];
+const RESULT_KEYS = ['hy05','hy15','fty15','fty25','fty35','kg','htscore','h2score','ftscore','iyres','msres'];
+
+function metaFilterInputHtml(id, placeholder){
+  return `<div class="input-wrap"><input type="text" id="${id}" placeholder="${placeholder}" oninput="markFilledText('${id}'); scheduleAutoFilter();"><span class="clear-x" id="clr-${id}" onclick="clearTextField('${id}')">×</span></div>`;
+}
+
+function buildHeader(){
+  let catRow = `<th rowspan="3" style="width:34px; padding:0;"></th><th colspan="3">LİQA VƏ TAKIMLAR</th>`;
+  let subRow = `<th>Liqa</th><th>Ev Sahibi</th><th>Deplasman</th>`;
+  let inputRow = `<td class="meta-cell">${metaFilterInputHtml('league-filter','Liqa axtar...')}</td><td class="meta-cell">${metaFilterInputHtml('home-filter','Ev sahibi...')}</td><td class="meta-cell">${metaFilterInputHtml('away-filter','Deplasman...')}</td>`;
+
+  catRow += `<th colspan="${RESULT_COLS.length}">NƏTİCƏ</th>`;
+  for(let ci=0; ci<RESULT_COLS.length; ci++){
+    subRow += `<th>${RESULT_COLS[ci]}</th>`;
+    inputRow += `<td class="meta-cell">${metaFilterInputHtml('resf-'+RESULT_KEYS[ci], '—')}</td>`;
+  }
+
+  let totalCols = 4 + RESULT_COLS.length;
+  for(const g of GROUPS){
+    catRow += `<th colspan="${g.fields.length}">${g.title}</th>`;
+    for(const [key,label] of g.fields){
+      subRow += `<th>${label}</th>`;
+      inputRow += `<td><div class="input-wrap"><input type="number" step="0.01" id="val-${key}" placeholder="—" oninput="markFilled('${key}'); scheduleAutoFilter();"><span class="clear-x" id="clr-${key}" onclick="clearField('${key}')">×</span></div></td>`;
+      totalCols++;
+    }
+  }
+
+  window._totalCols = totalCols;
+  window._catRow = catRow;
+  window._subRow = subRow;
+
+  // Build the persistent table structure ONCE. The <thead> (with live input elements)
+  // is never rebuilt again — only #tableBody gets replaced on subsequent filter runs,
+  // so values typed into inputs are never wiped out by re-rendering.
+  document.getElementById('resultsArea').innerHTML = `<div class="table-scroll"><table class="grid"><thead>
+    <tr class="cat-row">${catRow}</tr>
+    <tr class="sub-row">${subRow}</tr>
+    <tr class="input-row">${inputRow}</tr>
+  </thead><tbody id="tableBody"></tbody></table></div>`;
+
+  updateTableBody([]);
+}
+
+function markFilled(key){
+  const el = document.getElementById('val-'+key);
+  const has = el.value !== '';
+  el.classList.toggle('filled', has);
+  const clr = document.getElementById('clr-'+key);
+  if(clr) clr.style.display = has ? 'block' : 'none';
+}
+
+function clearField(key){
+  const el = document.getElementById('val-'+key);
+  el.value = '';
+  markFilled(key);
+  scheduleAutoFilter();
+}
+
+function markFilledText(id){
+  const el = document.getElementById(id);
+  const has = el.value.trim() !== '';
+  el.classList.toggle('filled', has);
+  const clr = document.getElementById('clr-'+id);
+  if(clr) clr.style.display = has ? 'block' : 'none';
+}
+
+function clearTextField(id){
+  const el = document.getElementById(id);
+  el.value = '';
+  markFilledText(id);
+  scheduleAutoFilter();
+}
+
+let _autoFilterTimer = null;
+function scheduleAutoFilter(){
+  if(_autoFilterTimer) clearTimeout(_autoFilterTimer);
+  _autoFilterTimer = setTimeout(runFilter, 320);
+}
+
+function updateTableBody(rows, emptyMsg){
+  const tbody = document.getElementById('tableBody');
+  if(!tbody) return;
+
+  // Günün matçlarından hansı(ları) yuxarıda pinlənəcək: əgər heç bir filtr şərti
+  // aktiv deyilsə (sadəcə gəzinti), hamısı göstərilir. Əgər bir filtr aktivdirsə
+  // (sarı qutucuqlara əmsal yazılıb və ya liqa/komanda axtarışı var), YALNIZ
+  // həmin şərtlərə uyğun gələn günün matçı pinlənir — beləliklə o, öz DB
+  // nəticələrinin düz üstündə qalır, 140+ əlaqəsiz matçın altında itmir.
+  let pinnedList = [];
+  if(typeof TODAY_MATCHES_CACHE !== 'undefined' && TODAY_MATCHES_CACHE.length){
+    const activeOdds = [];
+    if(typeof GROUPS !== 'undefined'){
+      for(const g of GROUPS){
+        for(const [key] of g.fields){
+          const el = document.getElementById('val-'+key);
+          const v = el ? parseFloat(el.value) : NaN;
+          if(!isNaN(v) && v > 0) activeOdds.push([key, v]);
+        }
+      }
+    }
+    const leagueEl = document.getElementById('league-filter');
+    const homeEl = document.getElementById('home-filter');
+    const awayEl = document.getElementById('away-filter');
+    const leagueQ = ((leagueEl && leagueEl.value) || '').trim().toLocaleLowerCase('tr');
+    const homeQ = ((homeEl && homeEl.value) || '').trim().toLocaleLowerCase('tr');
+    const awayQ = ((awayEl && awayEl.value) || '').trim().toLocaleLowerCase('tr');
+    const EPS = 0.005;
+
+    for(const m of TODAY_MATCHES_CACHE){
+      const row = m.row || {};
+      let ok = true;
+      for(const [key, target] of activeOdds){
+        const v = row[key];
+        if(v == null || Math.abs(v - target) > EPS){ ok = false; break; }
+      }
+      if(ok && leagueQ && !(m.league||'').toLocaleLowerCase('tr').includes(leagueQ)) ok = false;
+      if(ok && homeQ && !(m.home||'').toLocaleLowerCase('tr').includes(homeQ)) ok = false;
+      if(ok && awayQ && !(m.away||'').toLocaleLowerCase('tr').includes(awayQ)) ok = false;
+      if(ok) pinnedList.push(m);
+    }
+  }
+
+  const pinnedHtml = pinnedList.map(todayPinnedRowHtml).join('');
+  if((!rows || rows.length === 0) && !pinnedHtml){
+    const msg = emptyMsg || 'Qutucuqlara əmsal yaz, ya da cədvəldəki bir dəyərə iki dəfə klikləyərək filtrə əlavə et';
+    tbody.innerHTML = `<tr><td colspan="${window._totalCols}" style="text-align:center; padding:40px 20px; color:var(--text-dim); font-family:var(--mono);">${msg}</td></tr>`;
+    return;
+  }
+  let html = pinnedHtml;
+  for(const i of rows) html += rowHtml(i);
+  tbody.innerHTML = html;
+}
+
+function pillClass(score){
+  const [h,a] = score.split('-').map(Number);
+  if(h>a) return 'home'; if(h<a) return 'away'; return 'draw';
+}
+function pillText(score){
+  const [h,a] = score.split('-').map(Number);
+  if(h>a) return 'Home'; if(h<a) return 'Away'; return 'Draw';
+}
+function ouPill(total, threshold){
+  const isOver = total > threshold;
+  return `<span class="pill ${isOver?'over':'under'}">${isOver?'Over':'Under'}</span>`;
+}
+function ynPill(cond){
+  return `<span class="pill ${cond?'yes':'no'}">${cond?'Yes':'No'}</span>`;
+}
+
+function oddPairHtml(key, i){
+  const a = DB.oddsA[key][i], k = DB.oddsK[key][i];
+  if(a==null && k==null) return `<td>—</td>`;
+  let cls = 'flat', arrow = '▬';
+  if(typeof a==='number' && typeof k==='number'){
+    if(k < a - 0.004){ cls='down'; arrow='↓'; }
+    else if(k > a + 0.004){ cls='up'; arrow='↑'; }
+  }
+  const clickVal = (a!=null ? a : k);
+  return `<td class="fillable" ondblclick="fillFromCell('${key}', ${clickVal})" title="Açılış → Qapanış · iki dəfə klik → filtrə əlavə et">
+    <div class="odd-pair ${cls}">
+      <span class="oa">${a==null?'–':a.toFixed(2)}</span><span class="oarrow">${arrow}</span><span class="ok">${k==null?'–':k.toFixed(2)}</span>
+    </div>
+  </td>`;
+}
+
+function escLeague(s){
+  return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+}
+
+function fillLeagueFilter(name){
+  const el = document.getElementById('league-filter');
+  if(!el) return;
+  el.value = name;
+  markFilledText('league-filter');
+  el.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
+  el.focus();
+  scheduleAutoFilter();
+}
+
+function fillMetaFilter(kind, value){
+  const el = document.getElementById(kind+'-filter');
+  if(!el) return;
+  el.value = value;
+  markFilledText(kind+'-filter');
+  el.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
+  el.focus();
+  scheduleAutoFilter();
+}
+
+function fillResultFilter(key, value){
+  const id = 'resf-'+key;
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.value = value;
+  markFilledText(id);
+  el.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
+  el.focus();
+  scheduleAutoFilter();
+}
+
+function computeResultRowRaw(i){
+  const iyRaw = DB.meta.iy[i]||'', msRaw = DB.meta.ms[i]||'';
+  const iyParts = iyRaw.split('-').map(Number);
+  const msParts = msRaw.split('-').map(Number);
+  const validIY = iyParts.length===2 && !isNaN(iyParts[0]) && !isNaN(iyParts[1]);
+  const validMS = msParts.length===2 && !isNaN(msParts[0]) && !isNaN(msParts[1]);
+  if(!validIY || !validMS) return null;
+  const [h1,a1] = iyParts, [h2,a2] = msParts;
+  const h2h = h2-h1, a2h = a2-a1;
+  const totalFT = h2+a2, totalHT = h1+a1;
+  const iyClass = h1>a1 ? 'home' : (h1<a1 ? 'away' : 'draw');
+  const msClass = h2>a2 ? 'home' : (h2<a2 ? 'away' : 'draw');
+  const iyres = h1>a1 ? 'Home' : (h1<a1 ? 'Away' : 'Draw');
+  const msres = h2>a2 ? 'Home' : (h2<a2 ? 'Away' : 'Draw');
+  return {
+    hy05: totalHT>0.5 ? 'Over':'Under',
+    hy15: totalHT>1.5 ? 'Over':'Under',
+    fty15: totalFT>1.5 ? 'Over':'Under',
+    fty25: totalFT>2.5 ? 'Over':'Under',
+    fty35: totalFT>3.5 ? 'Over':'Under',
+    kg: (h2>0 && a2>0) ? 'Yes':'No',
+    htscore: `${h1}:${a1}`,
+    h2score: `${h2h}:${a2h}`,
+    ftscore: `${h2}:${a2}`,
+    iyres, msres, iyClass, msClass,
+  };
+}
+
+function computeResultRow(i){
+  if(DB.resultCache) return DB.resultCache[i];
+  return computeResultRowRaw(i);
+}
+
+function pillCellHtml(key, value, cls){
+  if(value == null) return '<td></td>';
+  return `<td class="fillable pill-cell" ondblclick="fillResultFilter('${key}','${escLeague(value)}')" title="İki dəfə klik → filtrə əlavə et"><span class="pill ${cls}">${value}</span></td>`;
+}
+
+function scoreCellHtml(key, value){
+  return `<td class="fillable res-score" ondblclick="fillResultFilter('${key}','${escLeague(value)}')" title="İki dəfə klik → filtrə əlavə et">${value}</td>`;
+}
+
+function rowHtml(i){
+  const R = computeResultRow(i);
+  let resultCells = '';
+  if(R){
+    resultCells += pillCellHtml('hy05', R.hy05, R.hy05==='Over'?'over':'under');
+    resultCells += pillCellHtml('hy15', R.hy15, R.hy15==='Over'?'over':'under');
+    resultCells += pillCellHtml('fty15', R.fty15, R.fty15==='Over'?'over':'under');
+    resultCells += pillCellHtml('fty25', R.fty25, R.fty25==='Over'?'over':'under');
+    resultCells += pillCellHtml('fty35', R.fty35, R.fty35==='Over'?'over':'under');
+    resultCells += pillCellHtml('kg', R.kg, R.kg==='Yes'?'yes':'no');
+    resultCells += scoreCellHtml('htscore', R.htscore);
+    resultCells += scoreCellHtml('h2score', R.h2score);
+    resultCells += scoreCellHtml('ftscore', R.ftscore);
+    resultCells += pillCellHtml('iyres', R.iyres, R.iyClass);
+    resultCells += pillCellHtml('msres', R.msres, R.msClass);
+  } else {
+    resultCells = '<td></td>'.repeat(11);
+  }
+
+  let cells = `<td></td><td class="league" ondblclick="fillLeagueFilter('${escLeague(DB.meta.league[i])}')" title="İki dəfə klik → liqa filtrinə əlavə et">${DB.meta.league[i]||''}</td>`;
+  cells += `<td class="team-cell" ondblclick="fillMetaFilter('home','${escLeague(DB.meta.home[i])}')" title="İki dəfə klik → ev sahibi filtrinə əlavə et">${DB.meta.home[i]||''}</td>`;
+  cells += `<td class="team-cell" ondblclick="fillMetaFilter('away','${escLeague(DB.meta.away[i])}')" title="İki dəfə klik → deplasman filtrinə əlavə et">${DB.meta.away[i]||''}</td>`;
+  cells += resultCells;
+  for(const g of GROUPS){
+    for(const [key] of g.fields){
+      cells += oddPairHtml(key, i);
+    }
+  }
+  return `<tr>${cells}</tr>`;
+}
+
+// Günün çəkilmiş matçından (TODAY_MATCHES_CACHE, today-matches.js-də doldurulur)
+// filtrlə üst-üstə düşən sətir — nəticə hələ yoxdur (matç oynanmayıb),
+// ona görə NƏTİCƏ sütunları boş qalır, əmsallar isə tək (açılış) dəyər kimi göstərilir.
+function todayPinnedRowHtml(m){
+  const row = m.row || {};
+  let cells = `<td style="padding:4px; text-align:center;"><button class="btn" style="background:var(--amber); color:#1a1204; border:none; font-size:10.5px; padding:6px 8px; white-space:nowrap;" onclick="analyzeTodayMatch('${(m.id+'').replace(/'/g,"")}')">🟡 Analiz et</button></td>`;
+  cells += `<td class="league" ondblclick="fillLeagueFilter('${escLeague(m.league)}')" title="🔴 Bugünkü matç · iki dəfə klik → liqa filtrinə əlavə et">🔴 ${m.league||''}</td>`;
+  cells += `<td class="team-cell" ondblclick="fillMetaFilter('home','${escLeague(m.home)}')" title="iki dəfə klik → ev sahibi filtrinə əlavə et">${m.home||''}</td>`;
+  cells += `<td class="team-cell" ondblclick="fillMetaFilter('away','${escLeague(m.away)}')" title="iki dəfə klik → deplasman filtrinə əlavə et">${m.away||''}</td>`;
+  cells += '<td></td>'.repeat(RESULT_COLS.length);
+  for(const g of GROUPS){
+    for(const [key] of g.fields){
+      const v = row[key];
+      if(v==null){
+        cells += '<td style="text-align:center;"><span style="color:var(--text-faint);">-</span></td>';
+      } else {
+        cells += `<td class="fillable" style="text-align:center; font-family:var(--table-font);" ondblclick="fillFromCell('${key}', ${v})" title="Bugünkü açılış əmsalı · iki dəfə klik → filtrə əlavə et">${v}</td>`;
+      }
+    }
+  }
+  return `<tr class="today-pinned-row">${cells}</tr>`;
+}
+
+function fillFromCell(key, value){
+  const el = document.getElementById('val-'+key);
+  if(!el) return;
+  el.value = (typeof value === 'number') ? value : parseFloat(value);
+  markFilled(key);
+  el.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
+  el.focus();
+  scheduleAutoFilter();
+}
+
+function clearAll(){
+  clearOddsBoxesOnly();
+  const textIds = ['league-filter','home-filter','away-filter', ...RESULT_KEYS.map(k=>'resf-'+k)];
+  for(const id of textIds){
+    const el = document.getElementById(id);
+    if(el){ el.value=''; el.classList.remove('filled'); }
+    const clr = document.getElementById('clr-'+id);
+    if(clr) clr.style.display = 'none';
+  }
+  document.getElementById('scoreboard').innerHTML = '';
+  updateTableBody([]);
+}
+
+// Yalnız sarı əmsal qutucuqlarını (GROUPS) təmizləyir — liqa/komanda/nəticə
+// axtarışlarına toxunmur. Toplu Analiz və "Analiz et" hər yeni matçı
+// doldurmazdan ƏVVƏL bunu çağırır ki, əvvəlki axtarışdan qalan dəyərlər
+// yeni matçın öz şərtlərinə qarışıb yanlış (boş) nəticə verməsin.
+function clearOddsBoxesOnly(){
+  for(const g of GROUPS){
+    for(const [key] of g.fields){
+      const el = document.getElementById('val-'+key);
+      if(!el) continue;
+      el.value=''; el.classList.remove('filled');
+      const clr = document.getElementById('clr-'+key);
+      if(clr) clr.style.display = 'none';
+    }
+  }
+}
+
+function runFilter(){
+  const active = [];
+  for(const g of GROUPS){
+    for(const [key] of g.fields){
+      const raw = document.getElementById('val-'+key).value;
+      const v = parseFloat(raw);
+      if(!isNaN(v) && v > 0) active.push([key, v]);
+    }
+  }
+  const leagueQ = (document.getElementById('league-filter').value || '').trim().toLocaleLowerCase('tr');
+  const homeQ = (document.getElementById('home-filter').value || '').trim().toLocaleLowerCase('tr');
+  const awayQ = (document.getElementById('away-filter').value || '').trim().toLocaleLowerCase('tr');
+
+  const resultActive = [];
+  for(const key of RESULT_KEYS){
+    const el = document.getElementById('resf-'+key);
+    const raw = (el ? el.value : '').trim();
+    if(raw) resultActive.push([key, raw.toLocaleLowerCase('tr')]);
+  }
+
+  if(active.length === 0 && !leagueQ && !homeQ && !awayQ && resultActive.length === 0){
+    document.getElementById('scoreboard').innerHTML = '';
+    updateTableBody([]);
+    return;
+  }
+
+  const EPS = 0.005;
+  const n = DB.meta.ms.length;
+  const matchedIdx = [];
+  outer:
+  for(let i=0; i<n; i++){
+    if(leagueQ){
+      const lg = DB.meta.leagueLC ? DB.meta.leagueLC[i] : (DB.meta.league[i] || '').toLocaleLowerCase('tr');
+      if(!lg.includes(leagueQ)) continue outer;
+    }
+    if(homeQ){
+      const hm = DB.meta.homeLC ? DB.meta.homeLC[i] : (DB.meta.home[i] || '').toLocaleLowerCase('tr');
+      if(!hm.includes(homeQ)) continue outer;
+    }
+    if(awayQ){
+      const aw = DB.meta.awayLC ? DB.meta.awayLC[i] : (DB.meta.away[i] || '').toLocaleLowerCase('tr');
+      if(!aw.includes(awayQ)) continue outer;
+    }
+    for(const [key, target] of active){
+      const v = DB.oddsA[key][i];
+      if(v === 0 || v == null) continue outer;
+      if(Math.abs(v - target) > EPS) continue outer;
+    }
+    if(resultActive.length){
+      const R = computeResultRow(i);
+      if(!R) continue outer;
+      for(const [key, q] of resultActive){
+        const val = String(R[key] ?? '').toLocaleLowerCase('tr');
+        if(!val.includes(q)) continue outer;
+      }
+    }
+    matchedIdx.push(i);
+  }
+
+  const totalActive = active.length + resultActive.length + (leagueQ?1:0) + (homeQ?1:0) + (awayQ?1:0);
+
+  let topScore = null, topCount = 0;
+  const scoreCounts = new Map();
+  for(const i of matchedIdx){
+    const s = DB.meta.ms[i];
+    const c = (scoreCounts.get(s) || 0) + 1;
+    scoreCounts.set(s, c);
+    if(c > topCount){ topCount = c; topScore = s; }
+  }
+  const top = topScore ? [topScore, topCount] : null;
+  const purity = top ? (topCount/matchedIdx.length*100) : 0;
+
+  document.getElementById('scoreboard').innerHTML = `
+    <div class="sb-card amber"><div class="num">${matchedIdx.length}</div><div class="lbl">Uyğun Matç</div></div>
+    <div class="sb-card ${purity>=70?'green':'amber'}"><div class="num">${top?top[0]:'—'}</div><div class="lbl">Ən Çox Görülən Skor</div></div>
+    <div class="sb-card"><div class="num">${totalActive}</div><div class="lbl">Aktiv Şərt</div></div>
+  `;
+
+  requestAnimationFrame(() => updateTableBody(matchedIdx.slice(0, 150)));
+
+  window.LAST_MANUAL_IDX = matchedIdx;
+  const labelParts = [];
+  if(leagueQ) labelParts.push('Liqa: '+leagueQ);
+  if(homeQ) labelParts.push('Ev: '+homeQ);
+  if(awayQ) labelParts.push('Qonaq: '+awayQ);
+  for(const [key, v] of active) labelParts.push((LABELS[key]||key)+': '+v);
+  for(const [key, q] of resultActive) labelParts.push((LABELS[key]||key)+': '+q);
+  window.LAST_MANUAL_LABEL = labelParts.length ? labelParts.join(' · ') : 'Filtr (şərtsiz)';
+}
+
+loadData();
+
+function switchTab(tab){
+  const tabs = ['manual','analyses','admin','about'];
+  for(const t of tabs){
+    const panel = document.getElementById('tab-'+t);
+    const btn = document.getElementById('tab-'+t+'-btn');
+    if(panel) panel.classList.toggle('active', tab===t);
+    if(btn) btn.classList.toggle('active', tab===t);
+  }
+  if(tab==='analyses' && typeof loadAnalysesList === 'function') loadAnalysesList();
+}
+
+/* ================= AVTOMATİK ANALİZ ================= */
+
+function normTr(s){
+  return String(s).toLocaleLowerCase('tr')
+    .replace(/ı/g,'i').replace(/İ/g,'i')
+    .replace(/ş/g,'s').replace(/ç/g,'c')
+    .replace(/ğ/g,'g').replace(/ö/g,'o').replace(/ü/g,'u')
+    .replace(/ə/g,'e');
+}
+
+function extractNums(line){
+  const m = line.match(/[+-]?\d+(?:[.,]\d+)?/g);
+  return m ? m.map(x=>parseFloat(x.replace(',','.'))) : [];
+}
+
+function nearestThreshold(num, options){
+  for(const o of options){ if(Math.abs(num-o) < 0.05) return o; }
+  return null;
+}
+
+// Yapışdırılan xam mətndə tez-tez rast gəlinən "nöqtə-vergül xətalarını" (məs. "1;75"
+// onluq ayırıcısı əvəzinə səhvən nöqtəli-vergüllə yazılıb, ya da bazarlar arasında
+// artıq ";" qalıb) təmizləyir — parser işə düşməzdən əvvəl çağırılır.
+function cleanOddsText(text){
+  let t = String(text);
+  t = t.replace(/(\d);(\d)/g, '$1.$2');   // "1;75" -> "1.75" (onluq ayırıcısı səhvi)
+  t = t.replace(/;+/g, ' ');                // qalan bütün ";" -> boşluq
+  t = t.split(/\r?\n/).map(l => l.replace(/[ \t]+/g,' ').trim()).join('\n');
+  return t;
+}
+
+function parseOddsText(text){
+  const lines = cleanOddsText(text).split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
+  const parsed = {};
+  function set(key, val){
+    if(val==null || isNaN(val)) return;
+    parsed[key] = val;
+  }
+  for(const raw of lines){
+    const htftMatch = raw.match(/^([12xX])\s*\/\s*([12xX])\s+([+-]?[\d.,]+)/);
+    if(htftMatch){
+      const g1 = htftMatch[1].toUpperCase(), g2 = htftMatch[2].toUpperCase();
+      set('HTFT'+g1+g2, parseFloat(htftMatch[3].replace(',','.')));
+      continue;
+    }
+
+    const line = normTr(raw);
+    const nums = extractNums(raw);
+    if(nums.length===0) continue;
+
+    if(nums.length===3 && !/[a-z]/i.test(raw)){
+      const th = nearestThreshold(nums[0], [-0.5, 0, 0.5]);
+      if(th !== null){
+        const suf = th<0 ? 'AHm05' : (th>0 ? 'AHp05' : 'AH0');
+        set(suf+'_1', nums[1]); set(suf+'_2', nums[2]);
+        continue;
+      }
+    }
+
+    if(/ms\s*1x2/.test(line)){
+      const afterMatch = raw.match(/1\s*[xX]\s*2\s*(.+)/);
+      const numsAfter = afterMatch ? extractNums(afterMatch[1]) : [];
+      if(numsAfter.length>=3){
+        if(/ilk\s*yari/.test(line)){ set('IY1',numsAfter[0]); set('IYX',numsAfter[1]); set('IY2',numsAfter[2]); }
+        else if(/ikinci\s*yari/.test(line)){ set('IIY1',numsAfter[0]); set('IIYX',numsAfter[1]); set('IIY2',numsAfter[2]); }
+        else { set('MS1',numsAfter[0]); set('MSX',numsAfter[1]); set('MS2',numsAfter[2]); }
+        continue;
+      }
+    }
+
+    if(/(avr(o|u)pa|european)\s*handi(c|k)ap/.test(line) && nums.length>=3){
+      const o = nums.slice(-3);
+      set('EH1',o[0]); set('EHX',o[1]); set('EH2',o[2]);
+      continue;
+    }
+
+    if((/ust/.test(line) || /over/.test(line)) && (/alt/.test(line) || /under/.test(line)) && nums.length>=3){
+      const th = nearestThreshold(nums[0], [1.5,2.5,3.5]);
+      if(th!==null){
+        const lbl = th===1.5?'1_5':th===2.5?'2_5':'3_5';
+        set('UST'+lbl, nums[1]); set('ALT'+lbl, nums[2]);
+        continue;
+      }
+    }
+
+    if(/\bkg\b/.test(line) && /var/.test(line) && /yok/.test(line) && nums.length>=2){
+      if(/ilk\s*yari/.test(line)){ set('IKGVAR',nums[0]); set('IKGYOK',nums[1]); }
+      else { set('KGVAR',nums[0]); set('KGYOK',nums[1]); }
+      continue;
+    }
+
+    if(/cifte\s*sans|double\s*chance/.test(line) && nums.length>=3){
+      if(/ilk\s*yari/.test(line)){ set('IDC1X',nums[0]); set('IDC12',nums[1]); set('IDCX2',nums[2]); }
+      else { set('DC1X',nums[0]); set('DC12',nums[1]); set('DCX2',nums[2]); }
+      continue;
+    }
+  }
+  return parsed;
+}
+
+function intersectSorted(a, b){
+  const res = [];
+  let i=0, j=0;
+  while(i<a.length && j<b.length){
+    if(a[i]===b[j]){ res.push(a[i]); i++; j++; }
+    else if(a[i]<b[j]) i++;
+    else j++;
+  }
+  return res;
+}
+
+function topScoreInfo(idxArr){
+  const counts = {};
+  for(const i of idxArr){
+    const s = DB.meta.ms[i];
+    counts[s] = (counts[s]||0)+1;
+  }
+  let top=null, topCount=0;
+  for(const k in counts){ if(counts[k]>topCount){ top=k; topCount=counts[k]; } }
+  return { top, topCount, pct: idxArr.length ? (topCount/idxArr.length*100) : 0 };
+}
+
+// Eyni bazara aid nəticələr (məs. MS1X2-nin 1/X/2-si, ya da Üst/Alt-ın eyni həddi)
+// ayrı-ayrı deyil, BİRGƏ (bir "vahid" kimi) götürülür — çünki onlar eyni matçın
+// eyni bazarının fərqli tərəfləridir və ayrılıqda mənasızdır.
+const MARKET_GROUPS = {
+  MS1:'MS1X2', MSX:'MS1X2', MS2:'MS1X2',
+  IY1:'IY1X2', IYX:'IY1X2', IY2:'IY1X2',
+  IIY1:'IIY1X2', IIYX:'IIY1X2', IIY2:'IIY1X2',
+  UST1_5:'UA1_5', ALT1_5:'UA1_5',
+  UST2_5:'UA2_5', ALT2_5:'UA2_5',
+  UST3_5:'UA3_5', ALT3_5:'UA3_5',
+  AHm05_1:'AHm05', AHm05_2:'AHm05',
+  AH0_1:'AH0', AH0_2:'AH0',
+  AHp05_1:'AHp05', AHp05_2:'AHp05',
+  KGVAR:'KG', KGYOK:'KG',
+  IKGVAR:'IKG', IKGYOK:'IKG',
+  DC1X:'DC', DC12:'DC', DCX2:'DC',
+  IDC1X:'IDC', IDC12:'IDC', IDCX2:'IDC',
+  EH1:'EH', EHX:'EH', EH2:'EH',
+};
+
+function groupConditionsIntoUnits(conditions){
+  const groups = {};
+  const units = [];
+  for(const c of conditions){
+    const g = MARKET_GROUPS[c.key];
+    if(g){
+      if(!groups[g]) groups[g] = [];
+      groups[g].push(c);
+    } else {
+      units.push([c]);
+    }
+  }
+  for(const g in groups) units.push(groups[g]);
+  return units; // array of arrays; each inner array = one atomic market unit
+}
+
+function computeUnitIdxSet(members, restrictIdx){
+  const EPS = 0.005;
+  const n = DB.meta.ms.length;
+  let idxSet = null;
+  for(const {key,value} of members){
+    const arr = DB.oddsA[key];
+    if(!arr) return [];
+    const idx = [];
+    if(restrictIdx){
+      for(const i of restrictIdx){
+        const v = arr[i];
+        if(v!=null && Math.abs(v-value)<=EPS) idx.push(i);
+      }
+    } else {
+      for(let i=0;i<n;i++){
+        const v = arr[i];
+        if(v!=null && Math.abs(v-value)<=EPS) idx.push(i);
+      }
+    }
+    idxSet = idxSet===null ? idx : intersectSorted(idxSet, idx);
+    if(idxSet.length===0) break;
+  }
+  return idxSet || [];
+}
+
+function buildAutoCombosFromUnits(unitGroups, maxSize, minSample, restrictIdx, onDone){
+  const base = unitGroups.map((members, i) => {
+    const idxSet = computeUnitIdxSet(members, restrictIdx);
+    return { ids: members.map(m=>m.key), pos:[i], idxSet, count:idxSet.length };
+  });
+
+  let results = base.slice();
+  let current = base;
+  let size = 2;
+
+  // Hər ölçü (size) səviyyəsi bitəndən sonra setTimeout(0) ilə əsas thread-ə
+  // nəfəs vermək üçün bir "tick" veririk — bu, böyük kombinasiya sayında
+  // (çox bazar yapışdırılanda) UI-nin donmasının qarşısını alır.
+  function step(){
+    if(size > maxSize || current.length === 0){
+      onDone(results);
+      return;
+    }
+    const next = [];
+    for(const comboA of current){
+      const maxPos = Math.max(...comboA.pos);
+      for(let bIdx=maxPos+1; bIdx<base.length; bIdx++){
+        const unitB = base[bIdx];
+        const idxSet = intersectSorted(comboA.idxSet, unitB.idxSet);
+        if(idxSet.length >= minSample){
+          next.push({ ids:[...comboA.ids, ...unitB.ids], pos:[...comboA.pos, bIdx], idxSet, count:idxSet.length });
+        }
+      }
+      if(next.length > 4000) break;
+    }
+    results = results.concat(next);
+    current = next;
+    size++;
+    setTimeout(step, 0);
+  }
+  step();
+}
+
+function populateLeagueFilter(){
+  const sel = document.getElementById('autoLeagueFilter');
+  if(!sel || !DB || !DB.meta) return;
+  const set = new Set();
+  for(const lg of DB.meta.league){
+    const t = String(lg||'').trim();
+    if(t) set.add(t);
+  }
+  const leagues = Array.from(set).sort((a,b)=>a.localeCompare(b,'tr'));
+  let html = '<option value="">Bütün Liqalar</option>';
+  for(const lg of leagues){
+    html += `<option value="${lg.replace(/"/g,'&quot;')}">${lg}</option>`;
+  }
+  sel.innerHTML = html;
+}
+
+let LAST_AUTO_COMBOS = [];
+
+/* ============================================================
+   KOMANDA STATİSTİKASI — Poisson ehtimal modeli ilə matç analizi
+   ============================================================ */
+let TEAMSTATS_SPORT = 'football';
+
+function setTeamStatsSport(sport){
+  TEAMSTATS_SPORT = sport;
+  const fb = document.getElementById('sportBtn-football');
+  const bb = document.getElementById('sportBtn-basketball');
+  const hint = document.getElementById('teamStatsHint');
+  const textarea = document.getElementById('teamStatsText');
+  if(sport === 'football'){
+    fb.style.background = 'var(--gold)'; fb.style.color = 'var(--btn-text)'; fb.style.border='none';
+    bb.style.background = 'var(--navy-3)'; bb.style.color = 'var(--text-dim)'; bb.style.border='1px solid var(--line2)';
+    hint.innerHTML = 'Hər iki komandanın "Standings" statistikasını (Bet365 formatında) aşağıya birlikdə yapışdır — <b>birinci komanda Ev sahibi, ikinci komanda Qonaq</b> hesab olunur. Sistem Poisson ehtimal modeli ilə Mş1/X/2, Üst/Alt, KG və ən ehtimallı skoru hesablayacaq.';
+    textarea.placeholder = "Standings\n[SCO PR-3]   Celtic FC\nFT\tMatches\tWin\tDraw\tLose\tGoal\tMiss\tPts\tRank\tRate\nTotal\t33\t21\t4\t8\t59\t35\t67\t3\t63.6%\n...\n\n[SCO PR-9]   Dundee FC\nFT\tMatches\tWin\tDraw\tLose\tGoal\tMiss\tPts\tRank\tRate\nTotal\t33\t8\t9\t16\t34\t53\t33\t9\t24.2%\n...";
+  } else {
+    fb.style.background = 'var(--navy-3)'; fb.style.color = 'var(--text-dim)'; fb.style.border='1px solid var(--line2)';
+    bb.style.background = 'var(--gold)'; bb.style.color = 'var(--btn-text)'; bb.style.border='none';
+    hint.innerHTML = 'Hər iki komandanın basketbol "Standings" statistikasını aşağıya birlikdə yapışdır — <b>birinci komanda Ev sahibi, ikinci komanda Qonaq</b> hesab olunur. Basketbolda bərabərlik olmadığı üçün model qələbə ehtimalı, gözlənilən xal fərqi və ümumi xalı hesablayacaq.';
+    textarea.placeholder = "Standings\nAtlanta Dream\nFT\tMatches\tWin\tLose\tGoal\tMiss\tDiff\tRank\tWin rate\nTotal\t28\t18\t10\t89.4\t85.2\t4.2\t4\t64.3%\n...\n\nLas Vegas Aces\nFT\tMatches\tWin\tLose\tGoal\tMiss\tDiff\tRank\tWin rate\nTotal\t29\t20\t9\t91.4\t86.6\t4.8\t2\t69.0%\n...";
+  }
+  document.getElementById('teamStatsResults').innerHTML = '';
+}
+
+function parseStandingsRow(line, label){
+  // "Total  33  21  4  8  59  35  67  3  63.6%"  (9 sütun)
+  // "Last 6  6  4  1  1  10  7  13    66.7%"      (Rank boş — 8 sütun)
+  const re9 = new RegExp('^' + label.replace(' ', '\\s+') + '\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+([\\d.]+)%');
+  const re8 = new RegExp('^' + label.replace(' ', '\\s+') + '\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+([\\d.]+)%');
+  let m = line.match(re9);
+  if(m){
+    return { matches:+m[1], win:+m[2], draw:+m[3], lose:+m[4], goal:+m[5], miss:+m[6], pts:+m[7], rank:+m[8], rate:+m[9] };
+  }
+  m = line.match(re8);
+  if(m){
+    return { matches:+m[1], win:+m[2], draw:+m[3], lose:+m[4], goal:+m[5], miss:+m[6], pts:+m[7], rank:null, rate:+m[8] };
+  }
+  return null;
+}
+
+function parseTeamBlock(block){
+  const lines = block.split('\n').map(l=>l.trim()).filter(Boolean);
+  const headerMatch = lines[0] && lines[0].match(/^\[.*?\]\s*(.+)$/);
+  const name = headerMatch ? headerMatch[1].trim() : (lines[0] || 'Naməlum Komanda');
+
+  function extractSection(sectionLabel){
+    const startIdx = lines.findIndex(l => l.startsWith(sectionLabel + '\t') || /^(FT|HT)\s+Matches/.test(l) && l.startsWith(sectionLabel));
+    // Tap: sectionLabel (FT və ya HT) başlıq sətri "FT  Matches  Win ..."
+    let idx = -1;
+    for(let i=0;i<lines.length;i++){
+      if(new RegExp('^'+sectionLabel+'\\s+Matches\\s+Win').test(lines[i])){ idx = i; break; }
+    }
+    if(idx === -1) return null;
+    const rows = {};
+    for(let j=idx+1; j<lines.length && j<=idx+4; j++){
+      const l = lines[j];
+      let r = parseStandingsRow(l, 'Total');       if(r){ rows.total = r; continue; }
+      r = parseStandingsRow(l, 'Home Field');       if(r){ rows.home = r; continue; }
+      r = parseStandingsRow(l, 'Away Field');       if(r){ rows.away = r; continue; }
+      r = parseStandingsRow(l, 'Last 6');           if(r){ rows.last6 = r; continue; }
+    }
+    return rows;
+  }
+
+  return { name, ft: extractSection('FT'), ht: extractSection('HT') };
+}
+
+function splitStandingsIntoTeams(fullText){
+  const lines = fullText.split('\n');
+  const blocks = [];
+  let current = [];
+  for(const line of lines){
+    if(/^\[.*?\]/.test(line.trim())){
+      if(current.length) blocks.push(current.join('\n'));
+      current = [line];
+    } else {
+      current.push(line);
+    }
+  }
+  if(current.length) blocks.push(current.join('\n'));
+  return blocks.map(parseTeamBlock);
+}
+
+function poissonProb(lambda, k){
+  return Math.exp(-lambda) * Math.pow(lambda, k) / factorial(k);
+}
+function factorial(n){
+  let f = 1;
+  for(let i=2;i<=n;i++) f *= i;
+  return f;
+}
+
+function computeMatchProbabilities(lambdaHome, lambdaAway){
+  const MAXG = 8;
+  const matrix = [];
+  for(let h=0; h<=MAXG; h++){
+    matrix[h] = [];
+    for(let a=0; a<=MAXG; a++){
+      matrix[h][a] = poissonProb(lambdaHome, h) * poissonProb(lambdaAway, a);
+    }
+  }
+  let pHome=0, pDraw=0, pAway=0, pBtts=0;
+  const overUnder = {0.5:0, 1.5:0, 2.5:0, 3.5:0};
+  let bestScore = '0:0', bestP = -1;
+  for(let h=0; h<=MAXG; h++){
+    for(let a=0; a<=MAXG; a++){
+      const p = matrix[h][a];
+      if(h>a) pHome += p; else if(h<a) pAway += p; else pDraw += p;
+      if(h>0 && a>0) pBtts += p;
+      const total = h+a;
+      for(const th in overUnder){ if(total > Number(th)) overUnder[th] += p; }
+      if(p > bestP){ bestP = p; bestScore = h+':'+a; }
+    }
+  }
+  return {
+    pHome: pHome*100, pDraw: pDraw*100, pAway: pAway*100,
+    pBtts: pBtts*100, pNoBtts: (1-pBtts)*100,
+    over: Object.fromEntries(Object.entries(overUnder).map(([k,v])=>[k, v*100])),
+    bestScore,
+    lambdaHome, lambdaAway
+  };
+}
+
+function safeRate(goal, matches){ return matches>0 ? goal/matches : 0; }
+
+/* ---------- Basketbol parseri ---------- */
+function parseHoopsRow(line, label){
+  const base = '^' + label.replace(' ', '\\s+') + '\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+([\\d.]+)\\s+([\\d.]+)\\s+(-?[\\d.]+)\\s+';
+  const re8 = new RegExp(base + '(\\d+)\\s+([\\d.]+)%');
+  const re7 = new RegExp(base + '([\\d.]+)%');
+  let m = line.match(re8);
+  if(m) return { matches:+m[1], win:+m[2], lose:+m[3], goal:+m[4], miss:+m[5], diff:+m[6], rank:+m[7], rate:+m[8] };
+  m = line.match(re7);
+  if(m) return { matches:+m[1], win:+m[2], lose:+m[3], goal:+m[4], miss:+m[5], diff:+m[6], rank:null, rate:+m[7] };
+  return null;
+}
+
+function parseBasketballTeams(fullText){
+  const lines = fullText.split('\n').map(l=>l.trim()).filter(Boolean);
+  const ftIdxs = [];
+  for(let i=0;i<lines.length;i++){
+    if(/^FT\s+Matches\s+Win\s+Lose/.test(lines[i])) ftIdxs.push(i);
+  }
+  const teams = [];
+  for(let t=0; t<ftIdxs.length; t++){
+    const ftIdx = ftIdxs[t];
+    const name = lines[ftIdx-1] || ('Komanda ' + (t+1));
+    const nextFtIdx = ftIdxs[t+1] !== undefined ? ftIdxs[t+1] : lines.length;
+
+    function readRows(headerIdx){
+      const rows = {};
+      for(let j=headerIdx+1; j<=headerIdx+4 && j<lines.length; j++){
+        let r = parseHoopsRow(lines[j], 'Total');      if(r){ rows.total = r; continue; }
+        r = parseHoopsRow(lines[j], 'Home Field');     if(r){ rows.home = r; continue; }
+        r = parseHoopsRow(lines[j], 'Away Field');     if(r){ rows.away = r; continue; }
+        r = parseHoopsRow(lines[j], 'Last 10');        if(r){ rows.last10 = r; continue; }
+      }
+      return rows;
+    }
+
+    const ft = readRows(ftIdx);
+    let htIdx = -1;
+    for(let k=ftIdx+1; k<nextFtIdx; k++){
+      if(/^HT\s+Matches\s+Win\s+Lose/.test(lines[k])){ htIdx = k; break; }
+    }
+    const ht = htIdx !== -1 ? readRows(htIdx) : null;
+    teams.push({ name, ft, ht });
+  }
+  return teams;
+}
+
+function erf(x){
+  const sign = x<0 ? -1 : 1;
+  x = Math.abs(x);
+  const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429, p=0.3275911;
+  const t = 1/(1+p*x);
+  const y = 1 - (((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+  return sign*y;
+}
+function stdNormalCdf(z){ return 0.5*(1+erf(z/Math.sqrt(2))); }
+
+function computeBasketballPrediction(homeRow, awayRow, sdMargin){
+  const expHome = (homeRow.home.goal + awayRow.away.miss) / 2;
+  const expAway = (awayRow.away.goal + homeRow.home.miss) / 2;
+  const expMargin = expHome - expAway;
+  const pHomeWin = stdNormalCdf(expMargin / sdMargin) * 100;
+  return {
+    expHome, expAway,
+    expTotal: expHome + expAway,
+    expMargin,
+    pHomeWin, pAwayWin: 100 - pHomeWin
+  };
+}
+
+function runTeamStatsAnalysis(){
+  if(TEAMSTATS_SPORT === 'basketball') runBasketballStatsAnalysis();
+  else runFootballStatsAnalysis();
+}
+
+function runBasketballStatsAnalysis(){
+  const text = document.getElementById('teamStatsText').value;
+  const resultsEl = document.getElementById('teamStatsResults');
+  const teams = parseBasketballTeams(text).filter(t => t.ft && t.ft.home && t.ft.away);
+
+  if(teams.length < 2){
+    resultsEl.innerHTML = '<div class="empty-state"><div class="big">Ən azı 2 komandanın statistikası tapılmadı</div><div>Mətn formatını yoxla — "FT" başlıq sətri "Matches Win Lose ..." şəklində olmalıdır.</div></div>';
+    return;
+  }
+  const homeTeam = teams[0], awayTeam = teams[1];
+  const SD = 11; // basketbolda xal fərqi üçün təxmini standart kənarlaşma
+
+  function buildBlock(title, homeRow, awayRow, homeName, awayName){
+    if(!homeRow || !homeRow.home || !awayRow || !awayRow.away){
+      return `<div class="sb-card"><div class="lbl">${title}</div><div style="color:var(--text-dim); font-size:12px; margin-top:6px;">Kifayət qədər məlumat tapılmadı.</div></div>`;
+    }
+    const r = computeBasketballPrediction(homeRow, awayRow, SD);
+    return `
+      <div class="an-item" style="margin-bottom:16px;">
+        <div style="padding:16px 18px; border-bottom:1px solid var(--line);">
+          <div style="font-family:var(--display); font-weight:700; font-size:15px; color:var(--text);">${title}</div>
+          <div style="font-family:var(--mono); font-size:11px; color:var(--text-faint); margin-top:2px;">Gözlənilən xal: ${homeName} ${r.expHome.toFixed(1)} — ${r.expAway.toFixed(1)} ${awayName}</div>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; padding:16px 18px;">
+          <div class="sb-card"><div class="num">%${r.pHomeWin.toFixed(0)}</div><div class="lbl">${homeName} Qələbə</div></div>
+          <div class="sb-card"><div class="num">%${r.pAwayWin.toFixed(0)}</div><div class="lbl">${awayName} Qələbə</div></div>
+          <div class="sb-card green"><div class="num">${Math.round(r.expHome)}:${Math.round(r.expAway)}</div><div class="lbl">Gözlənilən Skor</div></div>
+          <div class="sb-card"><div class="num">${r.expTotal.toFixed(1)}</div><div class="lbl">Ümumi Xal (Gözlənilən)</div></div>
+          <div class="sb-card"><div class="num">${r.expMargin>0?'+':''}${r.expMargin.toFixed(1)}</div><div class="lbl">Xal Fərqi (Handikap)</div></div>
+        </div>
+      </div>`;
+  }
+
+  let html = `<div style="font-family:var(--mono); font-size:11px; color:var(--text-dim); margin-bottom:14px; text-transform:uppercase; letter-spacing:1px;">🏀 ${homeTeam.name} (Ev) vs ${awayTeam.name} (Qonaq)</div>`;
+  html += buildBlock('Tam Oyun', homeTeam.ft, awayTeam.ft, homeTeam.name, awayTeam.name);
+  if(homeTeam.ht && awayTeam.ht) html += buildBlock('1-ci Yarı', homeTeam.ht, awayTeam.ht, homeTeam.name, awayTeam.name);
+  html += `<button class="btn" style="background:var(--navy-3); color:var(--gold-2); border:1px solid var(--line2); margin-top:6px;" onclick="saveTeamStatsAnalysis()">💾 Kaydet</button>`;
+  resultsEl.innerHTML = html;
+
+  window.LAST_TEAMSTATS_SPORT = 'basketball';
+  window.LAST_TEAMSTATS_HOME = homeTeam.name;
+  window.LAST_TEAMSTATS_AWAY = awayTeam.name;
+  window.LAST_TEAMSTATS_HTML = html.replace(/<button class="btn"[^>]*onclick="saveTeamStatsAnalysis\(\)">💾 Kaydet<\/button>/, '');
+}
+
+function runFootballStatsAnalysis(){
+  const text = document.getElementById('teamStatsText').value;
+  const resultsEl = document.getElementById('teamStatsResults');
+  const teams = splitStandingsIntoTeams(text).filter(t => t.ft || t.ht);
+
+  if(teams.length < 2){
+    resultsEl.innerHTML = '<div class="empty-state"><div class="big">Ən azı 2 komandanın statistikası tapılmadı</div><div>Mətn formatını yoxla — hər komandanın başlığı "[XXX] Komanda Adı" şəklində olmalıdır.</div></div>';
+    return;
+  }
+  const homeTeam = teams[0], awayTeam = teams[1];
+
+  function buildBlock(title, homeRow, awayRow, homeName, awayName){
+    if(!homeRow || !awayRow){
+      return `<div class="sb-card"><div class="lbl">${title}</div><div style="color:var(--text-dim); font-size:12px; margin-top:6px;">Kifayət qədər məlumat tapılmadı.</div></div>`;
+    }
+    const lamH = (safeRate(homeRow.home.goal, homeRow.home.matches) + safeRate(awayRow.away.miss, awayRow.away.matches)) / 2;
+    const lamA = (safeRate(awayRow.away.goal, awayRow.away.matches) + safeRate(homeRow.home.miss, homeRow.home.matches)) / 2;
+    const res = computeMatchProbabilities(lamH, lamA);
+
+    return `
+      <div class="an-item" style="margin-bottom:16px;">
+        <div style="padding:16px 18px; border-bottom:1px solid var(--line);">
+          <div style="font-family:var(--display); font-weight:700; font-size:15px; color:var(--text);">${title}</div>
+          <div style="font-family:var(--mono); font-size:11px; color:var(--text-faint); margin-top:2px;">Gözlənilən qol: ${homeName} ${res.lambdaHome.toFixed(2)} — ${res.lambdaAway.toFixed(2)} ${awayName}</div>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; padding:16px 18px;">
+          <div class="sb-card"><div class="num">%${res.pHome.toFixed(0)}</div><div class="lbl">${homeName} Qələbə</div></div>
+          <div class="sb-card"><div class="num">%${res.pDraw.toFixed(0)}</div><div class="lbl">Bərabərlik</div></div>
+          <div class="sb-card"><div class="num">%${res.pAway.toFixed(0)}</div><div class="lbl">${awayName} Qələbə</div></div>
+          <div class="sb-card green"><div class="num">${res.bestScore}</div><div class="lbl">Ən Ehtimallı Skor</div></div>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; padding:0 18px 18px;">
+          <div class="sb-card"><div class="num">%${res.over['0.5'].toFixed(0)}</div><div class="lbl">0.5 Üst</div></div>
+          <div class="sb-card"><div class="num">%${res.over['1.5'].toFixed(0)}</div><div class="lbl">1.5 Üst</div></div>
+          <div class="sb-card"><div class="num">%${res.over['2.5'].toFixed(0)}</div><div class="lbl">2.5 Üst</div></div>
+          <div class="sb-card"><div class="num">%${res.over['3.5'].toFixed(0)}</div><div class="lbl">3.5 Üst</div></div>
+          <div class="sb-card"><div class="num">%${res.pBtts.toFixed(0)}</div><div class="lbl">KG Var</div></div>
+          <div class="sb-card"><div class="num">%${res.pNoBtts.toFixed(0)}</div><div class="lbl">KG Yox</div></div>
+        </div>
+      </div>`;
+  }
+
+  let html = `<div style="font-family:var(--mono); font-size:11px; color:var(--text-dim); margin-bottom:14px; text-transform:uppercase; letter-spacing:1px;">${homeTeam.name} (Ev) vs ${awayTeam.name} (Qonaq)</div>`;
+  html += buildBlock('Tam Vaxt (MS)', homeTeam.ft, awayTeam.ft, homeTeam.name, awayTeam.name);
+  html += buildBlock('İlk Yarı (İY)', homeTeam.ht, awayTeam.ht, homeTeam.name, awayTeam.name);
+  html += `<button class="btn" style="background:var(--navy-3); color:var(--gold-2); border:1px solid var(--line2); margin-top:6px;" onclick="saveTeamStatsAnalysis()">💾 Kaydet</button>`;
+  resultsEl.innerHTML = html;
+
+  window.LAST_TEAMSTATS_SPORT = 'football';
+  window.LAST_TEAMSTATS_HOME = homeTeam.name;
+  window.LAST_TEAMSTATS_AWAY = awayTeam.name;
+  window.LAST_TEAMSTATS_HTML = html.replace(/<button class="btn"[^>]*onclick="saveTeamStatsAnalysis\(\)">💾 Kaydet<\/button>/, '');
+}
+
+function runAutoAnalysis(){
+  const text = document.getElementById('autoText').value;
+  const parsed = parseOddsText(text);
+  const keys = Object.keys(parsed);
+  const previewEl = document.getElementById('autoParsedPreview');
+  const resultsArea = document.getElementById('autoResultsArea');
+
+  if(keys.length === 0){
+    previewEl.style.display = 'block';
+    previewEl.innerHTML = '<b>Heç bir bazar tanınmadı.</b> Mətn formatını yoxla (məsələn: "Ms1X2 1.75 3.50 4.20").';
+    resultsArea.innerHTML = '';
+    return;
+  }
+  previewEl.style.display = 'block';
+  previewEl.innerHTML = '<b>Tanınan bazarlar (' + keys.length + '):</b> ' +
+    keys.map(k => `<span class="parsed-chip">${LABELS[k]||k}: ${parsed[k]}</span>`).join(' ');
+
+  const conditions = keys.map(k => ({key:k, value:parsed[k]}));
+  const leagueSel = document.getElementById('autoLeagueFilter');
+  const selectedLeague = leagueSel ? leagueSel.value : '';
+  const scopeLabel = selectedLeague ? selectedLeague : 'bütün liqalar';
+  resultsArea.innerHTML = '<div class="empty-state"><div class="spinner" style="margin:0 auto 14px;"></div><div>' + scopeLabel + ' üzrə ən yaxın təkrarlanan skorlu kombinasiya axtarılır...</div></div>';
+
+  setTimeout(async ()=>{
+    const modeInput = document.querySelector('input[name="analysisMode"]:checked');
+    const analysisMode = modeInput ? modeInput.value : 'grouped';
+
+    let restrictIdx = null;
+    if(selectedLeague){
+      restrictIdx = [];
+      for(let i=0;i<DB.meta.league.length;i++){
+        if(String(DB.meta.league[i]||'').trim() === selectedLeague) restrictIdx.push(i);
+      }
+    }
+
+    if(analysisMode === 'ai'){
+      runAiAnalysis(conditions, restrictIdx, scopeLabel);
+      return;
+    }
+    if(analysisMode === 'algoritm'){
+      runAlgoritmAnalysis(conditions, restrictIdx, scopeLabel);
+      return;
+    }
+    if(analysisMode === 'similar'){
+      runSimilarMatchesAnalysis(conditions, restrictIdx, scopeLabel);
+      return;
+    }
+
+    const unitGroups = analysisMode === 'individual'
+      ? conditions.map(c => [c])          // hər əmsal ayrı-ayrı vahid kimi
+      : groupConditionsIntoUnits(conditions); // eyni bazarın nəticələri birgə
+    const MAX_SIZE = Math.min(10, Math.max(6, unitGroups.length));
+    const FLOOR_SAMPLE = 5;      // minimum matç sayı
+    const MIN_MARKETS = 5;       // minimum bazar (qrup) sayı
+    const MIN_REPEAT = 2;        // ən çox görülən skor minimum bu qədər dəfə təkrarlanmalıdır
+
+    const combos = await new Promise(resolve =>
+      buildAutoCombosFromUnits(unitGroups, MAX_SIZE, FLOOR_SAMPLE, restrictIdx, resolve)
+    );
+    const scored = combos
+      .filter(c => c.pos.length >= MIN_MARKETS)
+      .map(c => {
+        const info = topScoreInfo(c.idxSet);
+        const tight = avgScoreDispersion(c.idxSet);
+        return {...c, top:info.top, topCount:info.topCount, pct:info.pct, tight};
+      });
+
+    // Qol sayına birbaşa təsir edən bazarlar (Üst/Alt həddləri və KG Var/Yok) —
+    // bunlar son hesabı DOLAYI deyil, BİRBAŞA formalaşdırır, ona görə prioritetlidir.
+    const PRIORITY_KEYS = ['UST1_5','ALT1_5','UST2_5','ALT2_5','UST3_5','ALT3_5','KGVAR','KGYOK','IKGVAR','IKGYOK'];
+    const hasPriorityMarket = conditions.some(c => PRIORITY_KEYS.includes(c.key));
+    const priorityCount = ids => ids.filter(id => PRIORITY_KEYS.includes(id)).length;
+
+    const DISPERSION_LEVELS = [0.8, 1.0, 1.15, 1.5];
+    let best = null;
+    for(const thr of DISPERSION_LEVELS){
+      let candidates = scored.filter(c =>
+        c.count >= FLOOR_SAMPLE &&
+        c.topCount >= MIN_REPEAT &&
+        isFinite(c.tight) && c.tight <= thr
+      );
+      // Qol bazarları daxil edilibsə, mütləq onları özündə saxlayan kombinasiyalara üstünlük ver
+      if(hasPriorityMarket){
+        const withPriority = candidates.filter(c => priorityCount(c.ids) > 0);
+        if(withPriority.length) candidates = withPriority;
+      }
+      if(candidates.length){
+        // Sıralama: 1) qol-bazarı sayı, 2) dəqiq skorun konsentrasiyası, 3) dispersiya, 4) matç sayı, 5) şərt sayı
+        candidates.sort((a,b) =>
+          priorityCount(b.ids) - priorityCount(a.ids) ||
+          b.pct - a.pct ||
+          a.tight - b.tight ||
+          b.count - a.count ||
+          b.ids.length - a.ids.length
+        );
+        best = candidates[0];
+        break;
+      }
+    }
+    LAST_AUTO_COMBOS = best ? [best] : [];
+    renderTightComboResult(best, scopeLabel);
+  }, 30);
+}
+
+function scoreGoals(s){
+  const p = String(s||'').split('-').map(Number);
+  if(p.length!==2 || isNaN(p[0]) || isNaN(p[1])) return null;
+  return p;
+}
+
+function avgScoreDispersion(idxArr){
+  const goals = [];
+  for(const i of idxArr){ const g = scoreGoals(DB.meta.ms[i]); if(g) goals.push(g); }
+  if(goals.length===0) return Infinity;
+  const avgH = goals.reduce((s,g)=>s+g[0],0)/goals.length;
+  const avgA = goals.reduce((s,g)=>s+g[1],0)/goals.length;
+  let sum=0;
+  for(const g of goals) sum += Math.abs(g[0]-avgH) + Math.abs(g[1]-avgA);
+  return sum/goals.length;
+}
+
+// Günün çəkilmiş bir matçının BÜTÜN mövcud əmsallarını götürüb, əvvəllər
+// Avtomatik Analiz-in "Bazarları tam götürən sistem" rejimində olan eyni
+// alqoritmlə (bütün bazar kombinasiyalarını yoxlayıb ən sıx/təkrarlanan
+// skoru verən kombinasiyanı tapan) analiz edir.
+function analyzeTodayMatch(matchId){
+  const m = (typeof TODAY_MATCHES_CACHE !== 'undefined' ? TODAY_MATCHES_CACHE : []).find(x => String(x.id) === String(matchId));
+  if(!m) return;
+  const row = m.row || {};
+  const conditions = Object.keys(row).filter(k => row[k] != null).map(k => ({key:k, value:row[k]}));
+  const scopeLabel = `${m.league||''} — ${m.home||''} vs ${m.away||''}`;
+  const area = document.getElementById('autoResultsArea');
+
+  if(conditions.length < 5){
+    if(area) area.innerHTML = '<div class="empty-state"><div class="big">Bu matçın kifayət qədər əmsalı yoxdur</div><div>Analiz üçün ən azı 5 bazar lazımdır</div></div>';
+    return;
+  }
+
+  if(area){
+    area.innerHTML = `<div class="empty-state"><div class="spinner" style="margin:0 auto 14px;"></div><div>${scopeLabel} — tam bazar analizi aparılır...</div></div>`;
+    area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  setTimeout(async () => {
+    const unitGroups = groupConditionsIntoUnits(conditions);
+    const MAX_SIZE = Math.min(10, Math.max(6, unitGroups.length));
+    const FLOOR_SAMPLE = 5;
+    const MIN_MARKETS = 5;
+    const MIN_REPEAT = 2;
+
+    const combos = await new Promise(resolve =>
+      buildAutoCombosFromUnits(unitGroups, MAX_SIZE, FLOOR_SAMPLE, null, resolve)
+    );
+    const scored = combos
+      .filter(c => c.pos.length >= MIN_MARKETS)
+      .map(c => {
+        const info = topScoreInfo(c.idxSet);
+        const tight = avgScoreDispersion(c.idxSet);
+        return {...c, top:info.top, topCount:info.topCount, pct:info.pct, tight};
+      });
+
+    const PRIORITY_KEYS = ['UST1_5','ALT1_5','UST2_5','ALT2_5','UST3_5','ALT3_5','KGVAR','KGYOK','IKGVAR','IKGYOK'];
+    const hasPriorityMarket = conditions.some(c => PRIORITY_KEYS.includes(c.key));
+    const priorityCount = ids => ids.filter(id => PRIORITY_KEYS.includes(id)).length;
+
+    const DISPERSION_LEVELS = [0.8, 1.0, 1.15, 1.5];
+    let best = null;
+    for(const thr of DISPERSION_LEVELS){
+      let candidates = scored.filter(c =>
+        c.count >= FLOOR_SAMPLE &&
+        c.topCount >= MIN_REPEAT &&
+        isFinite(c.tight) && c.tight <= thr
+      );
+      if(hasPriorityMarket){
+        const withPriority = candidates.filter(c => priorityCount(c.ids) > 0);
+        if(withPriority.length) candidates = withPriority;
+      }
+      if(candidates.length){
+        candidates.sort((a,b) =>
+          priorityCount(b.ids) - priorityCount(a.ids) ||
+          b.pct - a.pct ||
+          a.tight - b.tight ||
+          b.count - a.count ||
+          b.ids.length - a.ids.length
+        );
+        best = candidates[0];
+        break;
+      }
+    }
+
+    LAST_AUTO_COMBOS = best ? [best] : [];
+    renderTightComboResult(best, scopeLabel);
+
+    if(best){
+      // Qalib kombinasiyanın bazarlarını sarı qutucuqlara doldur ki, əsas
+      // cədvəldə bu matç öz tapılan nəticələrinin düz üstündə pinlənsin.
+      // Əvvəlcə köhnə qutucuqları təmizləyirik ki, keçmiş axtarışdan qalan
+      // dəyərlər bu yeni şərtlərlə qarışıb yanlış (boş) nəticə verməsin.
+      clearOddsBoxesOnly();
+      for(const key of best.ids){
+        const el = document.getElementById('val-'+key);
+        if(el && row[key] != null){ el.value = row[key]; markFilled(key); }
+      }
+      runFilter();
+    }
+  }, 30);
+}
+
+function computeProbabilityStats(idxArr){
+  let n=0;
+  let homeG1=0, homeG2=0, homeG3=0, awayG1=0, awayG2=0, kg=0, msHome=0, msDraw=0, msAway=0;
+  let ht05=0, ht15=0, ft15=0, ft25=0, ft35=0;
+  for(const i of idxArr){
+    const ip = String(DB.meta.iy[i]||'').split('-').map(Number);
+    const mp = String(DB.meta.ms[i]||'').split('-').map(Number);
+    if(ip.length!==2 || mp.length!==2 || isNaN(ip[0]) || isNaN(ip[1]) || isNaN(mp[0]) || isNaN(mp[1])) continue;
+    const [h1,a1] = ip, [h2,a2] = mp;
+    n++;
+    if(h2>=1) homeG1++;
+    if(h2>=2) homeG2++;
+    if(h2>=3) homeG3++;
+    if(a2>=1) awayG1++;
+    if(a2>=2) awayG2++;
+    if(h2>0 && a2>0) kg++;
+    if(h2>a2) msHome++; else if(h2<a2) msAway++; else msDraw++;
+    const htTotal = h1+a1, ftTotal = h2+a2;
+    if(htTotal>0.5) ht05++;
+    if(htTotal>1.5) ht15++;
+    if(ftTotal>1.5) ft15++;
+    if(ftTotal>2.5) ft25++;
+    if(ftTotal>3.5) ft35++;
+  }
+  if(n===0) return [];
+  const pct = x => (x/n*100);
+  return [
+    {label:'Ev sahibi qazanar', pct: pct(msHome)},
+    {label:'Bərabərə bitər', pct: pct(msDraw)},
+    {label:'Qonaq komanda qazanar', pct: pct(msAway)},
+    {label:'KG Var (hər iki komanda qol vurar)', pct: pct(kg)},
+    {label:'Ev sahibi 1+ qol vuracaq', pct: pct(homeG1)},
+    {label:'Ev sahibi 2+ qol vuracaq', pct: pct(homeG2)},
+    {label:'Qonaq komanda 1+ qol vuracaq', pct: pct(awayG1)},
+    {label:'Qonaq komanda 2+ qol vuracaq', pct: pct(awayG2)},
+    {label:'İlk yarı 0.5 Üst', pct: pct(ht05)},
+    {label:'İlk yarı 1.5 Üst', pct: pct(ht15)},
+    {label:'MS 1.5 Üst', pct: pct(ft15)},
+    {label:'MS 2.5 Üst', pct: pct(ft25)},
+    {label:'MS 3.5 Üst', pct: pct(ft35)},
+  ];
+}
+
+// "Süni İntellekt" sistemi: kombinasiya/qrup axtarmır — birbaşa tarixi bazadakı
+// HƏQİQİ matçları yapışdırılan əmsallara olan yaxınlığına görə sıralayır və
+// ən yaxın N matçı tapır. Hər bazar üçün nisbi fərq (%) hesablanır, ortalaması
+// alınır; ortalaması ən kiçik olan (yəni ən yaxın) matçlar öndə olur.
+function findClosestMatchesAI(conditions, restrictIdx, topN){
+  const n = DB.meta.ms.length;
+  const minCoverage = Math.max(1, Math.ceil(conditions.length * 0.6));
+  const results = [];
+  function check(i){
+    let sumDiff = 0, covered = 0;
+    for(const c of conditions){
+      const arr = DB.oddsA[c.key];
+      if(!arr) continue;
+      const a = arr[i];
+      if(a === null || a === undefined || !c.value) continue;
+      sumDiff += Math.abs(a - c.value) / c.value;
+      covered++;
+    }
+    if(covered < minCoverage) return;
+    results.push({idx:i, dist: sumDiff / covered, covered});
+  }
+  if(restrictIdx){ for(const i of restrictIdx) check(i); }
+  else { for(let i=0;i<n;i++) check(i); }
+  results.sort((a,b) => (a.dist - b.dist) || (b.covered - a.covered));
+  return results.slice(0, topN);
+}
+
+function runAiAnalysis(conditions, restrictIdx, scopeLabel){
+  const TOP_N = 8; // "top 5-10 ən yaxın matç"
+  const top = findClosestMatchesAI(conditions, restrictIdx, TOP_N);
+  renderAiResult(top, scopeLabel, conditions);
+}
+
+function renderAiResult(top, scopeLabel, conditions){
+  const area = document.getElementById('autoResultsArea');
+  if(!top.length){
+    area.innerHTML = '<div class="empty-state"><div class="big">Uyğun matç tapılmadı</div><div>Fərqli əmsallar sınamağı və ya liqa filtrini "Bütün Liqalar"a dəyişməyi sına</div></div>';
+    return;
+  }
+  const label = conditions.map(c => LABELS[c.key]||c.key).join(' + ');
+
+  const counts = {};
+  for(const m of top){ const s = DB.meta.ms[m.idx]; counts[s] = (counts[s]||0)+1; }
+  let topScore=null, topScoreCount=0;
+  for(const k in counts){ if(counts[k]>topScoreCount){ topScore=k; topScoreCount=counts[k]; } }
+  const pct = top.length ? (topScoreCount/top.length*100) : 0;
+
+  const idxSet = top.map(m=>m.idx);
+  const matchRows = top.map((m,ord)=>{
+    const i = m.idx;
+    const closeness = Math.max(0, 100 - m.dist*100);
+    const barColor = closeness>=80 ? 'var(--teal)' : (closeness>=60 ? 'var(--amber)' : 'var(--red)');
+    return `<div class="dist-row">
+      <div class="lbl" style="width:230px; text-align:left; font-weight:600; white-space:normal;">${ord+1}. ${DB.meta.home[i]} - ${DB.meta.away[i]} <span style="color:var(--text-faint); font-weight:400;">(${DB.meta.league[i]||''})</span></div>
+      <div class="track"><div class="fill" style="width:${closeness.toFixed(0)}%; background:${barColor};"></div></div>
+      <div class="pct" style="width:70px; font-weight:700; color:var(--teal);">${DB.meta.ms[i]}</div>
+    </div>`;
+  }).join('');
+
+  const confClass = pct>=70 ? 'high' : (pct>=45 ? 'mid' : 'low');
+  const confLabel = pct>=70 ? 'Güclü' : (pct>=45 ? 'Orta' : 'Zəif');
+
+  area.innerHTML = `<div class="auto-panel">
+    <h3>🤖 Süni İntellekt Nəticəsi <span style="color:var(--text-faint); font-weight:400; font-size:12px;">· ${scopeLabel||'bütün liqalar'}</span></h3>
+    <div style="font-family:var(--mono); color:var(--amber); font-size:12px; margin-bottom:18px; line-height:1.6;">${label}</div>
+    <div class="hero-score">
+      <div class="hero-score-main">
+        <div class="hero-score-num">${topScore}</div>
+        <div class="hero-score-lbl">Ən ehtimallı skor (${top.length} ən yaxın matç arasında) <span class="conf-badge ${confClass}">${confLabel}</span></div>
+      </div>
+      <div class="hero-score-sub">
+        <div><div class="hs-num">${pct.toFixed(1)}%</div><div class="hs-lbl">Konsentrasiya</div></div>
+        <div><div class="hs-num">${top.length}</div><div class="hs-lbl">Ən yaxın matç</div></div>
+      </div>
+    </div>
+    <div style="margin:18px 0 8px; font-family:var(--mono); font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px;">Ən yaxın ${top.length} matç (əmsallara görə yaxınlıq sırası ilə)</div>
+    <div>${matchRows}</div>
+    <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">
+      <button class="btn btn-run" onclick="showComboMatches(0)">Uyğun Matçları Göstər</button>
+      ${_isAdminNow() ? '<button class="btn" style="background:var(--navy-3); color:var(--gold-2); border:1px solid var(--line2);" onclick="saveAnalysisAuto(0)">💾 Kaydet</button>' : ''}
+    </div>
+  </div>`;
+
+  window.LAST_AUTO_LABEL = label + ' (Süni İntellekt)';
+  LAST_AUTO_COMBOS = [{
+    ids: conditions.map(c=>c.key),
+    idxSet,
+    count: idxSet.length,
+    top: topScore,
+    topCount: topScoreCount,
+    pct,
+  }];
+}
+
+// "Alqoritm" sistemi: digər sistemlərdən fərqli olaraq şərtləri BİRGƏ (AND,
+// kəsişmə) yoxlamır — hər əmsalı AYRI-AYRILIQDA (öz-özlüyündə) dataya qarşı
+// yoxlayır: hər bazar üçün "bu əmsala yaxın olan matçlarda hansı skorlar necə
+// tez-tez çıxıb" statistikası çıxarılır, sonra bütün bazarların bu statistikaları
+// birlikdə "səsvermə" kimi ortalanır və ən çox səs toplayan 3 skor tapılır.
+// Bu, çoxlu bazar (10-15+) yapışdırılanda daha etibarlıdır — çünki hamısını
+// eyni anda tələb etmək (kəsişmə) demək olar heç vaxt heç bir matçda üst-üstə
+// düşmür, amma "hər biri öz-özlüyündə nəyə işarə edir" sualı həmişə cavablanır.
+function runAlgoritmAnalysis(conditions, restrictIdx, scopeLabel){
+  const EPS = 0.005;
+  const n = DB.meta.ms.length;
+  const perCondition = [];
+  for(const c of conditions){
+    const arr = DB.oddsA[c.key];
+    if(!arr) continue;
+    const idxSet = [];
+    if(restrictIdx){
+      for(const i of restrictIdx){ const v = arr[i]; if(v!=null && Math.abs(v-c.value)<=EPS) idxSet.push(i); }
+    } else {
+      for(let i=0;i<n;i++){ const v = arr[i]; if(v!=null && Math.abs(v-c.value)<=EPS) idxSet.push(i); }
+    }
+    if(idxSet.length===0) continue;
+    const counts = {};
+    for(const i of idxSet){ const s = DB.meta.ms[i]; counts[s] = (counts[s]||0)+1; }
+    perCondition.push({key:c.key, value:c.value, idxSet, counts, total:idxSet.length});
+  }
+
+  const scoreAgg = {};
+  for(const pc of perCondition){
+    for(const s in pc.counts){
+      const pct = pc.counts[s] / pc.total * 100;
+      if(!scoreAgg[s]) scoreAgg[s] = {sumPct:0, votes:0};
+      scoreAgg[s].sumPct += pct;
+      scoreAgg[s].votes += 1;
+    }
+  }
+  const totalConditions = perCondition.length;
+  const ranked = Object.keys(scoreAgg).map(s => ({
+    score: s,
+    avgPct: totalConditions ? (scoreAgg[s].sumPct / totalConditions) : 0,
+    votes: scoreAgg[s].votes,
+  })).sort((a,b) => (b.avgPct - a.avgPct) || (b.votes - a.votes));
+
+  renderAlgoritmResult(ranked.slice(0,3), perCondition, conditions, scopeLabel);
+}
+
+function renderAlgoritmResult(top3, perCondition, conditions, scopeLabel){
+  const area = document.getElementById('autoResultsArea');
+  if(!top3.length){
+    area.innerHTML = '<div class="empty-state"><div class="big">Uyğun nəticə tapılmadı</div><div>Yapışdırdığın əmsallara dataca yaxın matç tapılmadı — fərqli əmsallar sınamağı və ya liqa filtrini "Bütün Liqalar"a dəyişməyi sına</div></div>';
+    return;
+  }
+  const label = conditions.map(c => LABELS[c.key]||c.key).join(' + ');
+  const totalConditions = perCondition.length;
+  const top1 = top3[0];
+
+  const confClass = top1.avgPct>=25 ? 'high' : (top1.avgPct>=12 ? 'mid' : 'low');
+  const confLabel = top1.avgPct>=25 ? 'Güclü' : (top1.avgPct>=12 ? 'Orta' : 'Zəif');
+
+  const top3Rows = top3.map((t,ord)=>`<div class="dist-row">
+      <div class="lbl" style="width:120px; text-align:left; font-weight:700; font-size:15px; color:${ord===0?'var(--teal)':'var(--text)'};">${ord+1}. ${t.score}</div>
+      <div class="track"><div class="fill" style="width:${Math.min(100,t.avgPct).toFixed(0)}%; background:${ord===0?'var(--teal)':'var(--amber)'};"></div></div>
+      <div class="pct" style="width:130px;">${t.avgPct.toFixed(1)}% · ${t.votes}/${totalConditions} bazar</div>
+    </div>`).join('');
+
+  const breakdownRows = perCondition.map(pc=>{
+    let bestS=null, bestC=0;
+    for(const s in pc.counts){ if(pc.counts[s]>bestC){ bestS=s; bestC=pc.counts[s]; } }
+    const pct = pc.total ? (bestC/pc.total*100) : 0;
+    return `<div class="dist-row">
+      <div class="lbl" style="width:180px; text-align:left; font-weight:600; white-space:normal;">${LABELS[pc.key]||pc.key} (${pc.value})</div>
+      <div class="track"><div class="fill" style="width:${pct}%; background:var(--amber);"></div></div>
+      <div class="pct" style="width:120px;">${pc.total} matç · ${bestS||'—'}</div>
+    </div>`;
+  }).join('');
+
+  area.innerHTML = `<div class="auto-panel">
+    <h3>⚙️ Alqoritm Nəticəsi <span style="color:var(--text-faint); font-weight:400; font-size:12px;">· ${scopeLabel||'bütün liqalar'} · ${totalConditions}/${conditions.length} bazar dataca tapıldı</span></h3>
+    <div style="font-family:var(--mono); color:var(--amber); font-size:12px; margin-bottom:18px; line-height:1.6;">${label}</div>
+    <div class="hero-score">
+      <div class="hero-score-main">
+        <div class="hero-score-num">${top1.score}</div>
+        <div class="hero-score-lbl">Ən ehtimallı skor <span class="conf-badge ${confClass}">${confLabel}</span></div>
+      </div>
+      <div class="hero-score-sub">
+        <div><div class="hs-num">${top1.avgPct.toFixed(1)}%</div><div class="hs-lbl">Ortalama ehtimal</div></div>
+        <div><div class="hs-num">${top1.votes}/${totalConditions}</div><div class="hs-lbl">Dəstəkləyən bazar</div></div>
+      </div>
+    </div>
+    <div style="margin:18px 0 8px; font-family:var(--mono); font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px;">Ən ehtimallı 3 skor</div>
+    <div>${top3Rows}</div>
+    <div style="margin:22px 0 8px; font-family:var(--mono); font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px;">Bazar-bazar təhlil (hər əmsal ayrı-ayrılıqda yoxlanıldı)</div>
+    <div>${breakdownRows}</div>
+    <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">
+      <button class="btn btn-run" onclick="showComboMatches(0)">Uyğun Matçları Göstər</button>
+      ${_isAdminNow() ? '<button class="btn" style="background:var(--navy-3); color:var(--gold-2); border:1px solid var(--line2);" onclick="saveAnalysisAuto(0)">💾 Kaydet</button>' : ''}
+    </div>
+  </div>`;
+
+  window.LAST_AUTO_LABEL = label + ' (Alqoritm)';
+  const supportSet = new Set();
+  for(const pc of perCondition){
+    for(const i of pc.idxSet){ if(DB.meta.ms[i] === top1.score) supportSet.add(i); }
+  }
+  const idxSet = Array.from(supportSet).sort((a,b)=>a-b);
+  LAST_AUTO_COMBOS = [{
+    ids: conditions.map(c=>c.key),
+    idxSet,
+    count: idxSet.length,
+    top: top1.score,
+    topCount: idxSet.length,
+    pct: top1.avgPct,
+  }];
+}
+
+/* ============================================================
+   OXŞAR MATÇLAR — "Score-Twin Engine" (4-Təbəqəli İcra Arxitekturası)
+   ============================================================
+   TƏBƏQƏ 1 — Sərt Oyun-Profili Lövbəri (Strict Game-Profile Layer):
+     Lövbər 7 əmsaldan ibarətdir (Nəticə xətti MS1/MSX/MS2, Qol xətti
+     2.5Ü/2.5A, Ssenari xətti İY/MS-1/1 (HTFT11) və İlk Yarı MS1 (IY1)).
+     Yapışdırılan mətndə mövcud olan hər biri ehtimal fərqi (ΔP = |1/əmsal_daxil
+     − 1/əmsal_baza|) ilə ≤ 0.035 şərtini ödəməlidir (AND).
+     SƏRT QAYDA: əgər daxil edilən HTFT11 (İY/MS 1/1) < 3.00-dursa, ilk yarısı
+     Bərabərlik və ya Qonaq üstünlüyü ilə bitmiş bütün matçlar bu təbəqədə
+     DƏRHAL LƏĞV EDİLİR (real tarixi HT nəticəsinə görə, əmsala görə yox).
+   TƏBƏQƏ 2 — Matç Temposu / Skor-Profil Süzgəci (Score-Profile Filter):
+     Əgər daxil edilən 2.5Üst < 1.85 VƏ KGVar < 1.85-dirsə (yəni "yüksək templi,
+     hər iki komanda qol vuran" ssenari gözlənilirsə), ümumi qol sayı 3-dən az
+     olan (0-0, 1-0, 2-0, 1-1, 0-1 və s.) bütün namizədlər təmizlənir — yalnız
+     ümumi qol ≥ 3 olan matçlar sıralama mərhələsinə keçir.
+   TƏBƏQƏ 3 — Çəkili Oxşarlıq (Step B), 3 pilləli:
+     3x (Əsas Dinamika): bütün İY/MS (HT/FT) nəticələri, 2.5 Üst/Alt, KG Var/Yok
+     2x (Qol Fərqi):      Asian Handicap (-0.5/0/+0.5), Avropa Handikap (-1)
+                          (sistemdə "-1.0 Asiya" xətti yoxdur, ən yaxın ekvivalent
+                          Avropa Handikap -1 xəttidir), İlk Yarı MS1X2, 3.5 Üst/Alt
+     1x (Köməkçi):        1.5 Üst/Alt, Çifte Şans, İY Çifte Şans, 2Y 1X2, İY KG
+                          (Qeyd: sistemdə Dəqiq Skor əmsal bazarı yoxdur, ona görə
+                          bu alt-bazar tətbiq oluna bilmədi)
+   TƏBƏQƏ 4 — Dəqiq Skor Klasterlənməsi və Sərt Top-10:
+     Uyğunluq %-ə görə DESC çeşidlənir. Faiz bərabər olduqda, ümumi qol sayı
+     daxil edilən əmsallardan hesablanan təxmini qol gözləntisinə daha yaxın
+     olan matç önə keçir. Yekun siyahı SLICE(0,10) ilə kəsilir.
+*/
+const SIMILAR_ANCHOR_KEYS = ['MS1','MSX','MS2','UST2_5','ALT2_5','HTFT11','IY1'];
+const SIMILAR_ANCHOR_TOL = 0.035; // sabit ehtimal-fərqi toleransı (ΔP)
+const SIMILAR_NO_RESCORE_KEYS = ['MS1','MSX','MS2']; // lövbərdə tam təsdiqləndiyi üçün Step B-də təkrar xallanmır
+const SIMILAR_TOP_WEIGHT_KEYS = ['HTFT11','HTFT1X','HTFT12','HTFTX1','HTFTXX','HTFTX2','HTFT21','HTFT2X','HTFT22',
+  'UST2_5','ALT2_5','KGVAR','KGYOK']; // 3x
+const SIMILAR_HIGH_WEIGHT_KEYS = ['AHm05_1','AHm05_2','AH0_1','AH0_2','AHp05_1','AHp05_2',
+  'EH1','EHX','EH2','IY1','IYX','IY2','UST3_5','ALT3_5']; // 2x
+const SIMILAR_MED_WEIGHT_KEYS = ['UST1_5','ALT1_5','DC1X','DC12','DCX2',
+  'IDC1X','IDC12','IDCX2','IIY1','IIYX','IIY2','IKGVAR','IKGYOK']; // 1x
+const SIMILAR_MAX_RESULTS = 10;
+// İkinci dərəcəli bazarlarda nisbi fərqi Uyğunluq %-ə çevirərkən istifadə olunan
+// "həssaslıq" istinadı: fərq bu dəyərə görə normallaşdırılır.
+const SIMILAR_SECONDARY_REF_TOL = 0.10;
+// "Dənk matç" düzəlişi: MS1 və MS2 bir-birinə çox yaxındırsa (baş-başa matç),
+// bərabərlik ehtimalı yüksək olduğu üçün MSX və bərabərliklə bağlı HT/FT
+// xətlərinin çəkisi Step B-də xüsusi olaraq artırılır — beləcə 2-2, 3-3 kimi
+// yüksək qollu bərabərliklər dənk matçlarda sıranın üstünə qalxır.
+const SIMILAR_BALANCED_MS_DIFF = 0.60;
+const SIMILAR_BALANCED_BOOST_KEYS = ['MSX','HTFTXX','HTFTX1','HTFTX2'];
+const SIMILAR_BALANCED_BOOST_WEIGHT = 5;
+// "Qonaq Favoritliyi" düzəlişi: daxil edilən HT/FT 2/2 əmsalı HT/FT 1/1-dən
+// kiçikdirsə (yəni Qonaq-önə-keçib-qalib ssenarisi Ev-önə-keçib-qalib
+// ssenarisindən daha ehtimallıdırsa), Qonaq qələbəsi ilə bağlı bazarların
+// çəkisi xüsusi artırılır ki, 2:3, 1:4, 1:3 kimi nəticələr 2:1 kimi Ev
+// qələbələrindən öndə sıralansın.
+const SIMILAR_AWAY_BOOST_KEYS = ['HTFT22','IY2','MS2'];
+const SIMILAR_AWAY_BOOST_WEIGHT = 5;
+// Dinamik İstiqamət Bonusu (Step 4 - Sorting): bazar oxşarlığı (pct) eyni
+// qalsa belə, ssenari istiqaməti (HT/FT 1/1 və 2/2 əmsallarının nisbətindən
+// çıxarılır) ilə UYĞUN GƏLMƏYƏN faktiki nəticələr sıralamada cəza alır, uyğun
+// gələnlər isə bonus. Bu, "eyni faizdə olanları necə sırala" sualının cavabıdır
+// və eyni zamanda sərt bərabərlik-həlledicisi rolunu da oynayır (bonus/cəza
+// fərqi faiz bərabərliyini avtomatik pozur).
+const SIMILAR_DIR_BONUS = 6;
+const SIMILAR_DIR_PENALTY = 6;
+const SIMILAR_DIR_DRAW_BONUS = 3; // istiqamətlə üst-üstə düşməyən, amma Away/Home da olmayan Bərabərlik nəticəsi üçün yarım bonus
+// Elastik Top-N: nəticə siyahısı süni şəkildə 10-a tamamlanmır. Minimum
+// SIMILAR_MIN_RESULTS (varsa) həmişə göstərilir, bundan sonra isə yalnız
+// Uyğunluq %-i SIMILAR_QUALITY_MIN_PCT-dən yüksək olan namizədlər əlavə
+// olunur — keyfiyyət kəsildiyi an siyahı da orada dayanır (5-10 arası).
+const SIMILAR_MIN_RESULTS = 5;
+const SIMILAR_QUALITY_MIN_PCT = 70;
+
+// Ehtimal fərqi ilə lövbər süzgəci: raw əmsal fərqi əvəzinə 1/əmsal (implied
+// probability) fərqinə baxır — beləcə kiçik və böyük əmsallar eyni ədalətli
+// miqyasda müqayisə olunur.
+function similarFilterAnchors(anchorConds, tol, pool){
+  const n = DB.meta.ms.length;
+  const out = [];
+  const targets = anchorConds.map(c => ({ key: c.key, p: 1 / c.value }));
+  function passes(i){
+    for(const t of targets){
+      const arr = DB.oddsA[t.key];
+      const v = arr ? arr[i] : null;
+      if(v == null || v <= 0) return false;
+      if(Math.abs((1 / v) - t.p) > tol) return false;
+    }
+    return true;
+  }
+  if(pool){
+    for(const i of pool){ if(passes(i)) out.push(i); }
+  } else {
+    for(let i=0;i<n;i++){ if(passes(i)) out.push(i); }
+  }
+  return out;
+}
+
+// Bir matçın tam vaxt ümumi qol sayısını DB.meta.ms-dən ("h-a" formatı) çıxarır.
+function similarTotalGoals(i){
+  const msRaw = DB.meta.ms[i] || '';
+  const parts = msRaw.split('-').map(Number);
+  if(parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return null;
+  return parts[0] + parts[1];
+}
+
+// Daxil edilən 2.5 Üst/Alt əmsallarından çox kobud bir "gözlənilən ümumi qol"
+// təxmini çıxarır (0.5 = neytral ~2.5 qol, 1.0-a yaxınlaşdıqca daha çox qol).
+function similarExpectedGoals(conditions){
+  const ust = conditions.find(c => c.key === 'UST2_5');
+  const alt = conditions.find(c => c.key === 'ALT2_5');
+  if(!ust || !alt) return null;
+  const pOver = (1/ust.value) / ((1/ust.value) + (1/alt.value));
+  return 2.0 + pOver * 3.0; // pOver→0 ⇒ ~2.0 qol, pOver→1 ⇒ ~5.0 qol
+}
+
+function runSimilarMatchesAnalysis(conditions, restrictIdx, scopeLabel){
+  const n = DB.meta.ms.length;
+  const pool = restrictIdx || null;
+  const anchorConds = conditions.filter(c => SIMILAR_ANCHOR_KEYS.includes(c.key));
+  const ms1Cond = conditions.find(c => c.key === 'MS1');
+  const ms2Cond = conditions.find(c => c.key === 'MS2');
+  const isBalancedMatch = !!(ms1Cond && ms2Cond && Math.abs(ms1Cond.value - ms2Cond.value) <= SIMILAR_BALANCED_MS_DIFF);
+  const htft11Boost = conditions.find(c => c.key === 'HTFT11');
+  const htft22Boost = conditions.find(c => c.key === 'HTFT22');
+  const isAwayFavored = !!(htft11Boost && htft22Boost && htft22Boost.value < htft11Boost.value);
+  // Sıralama üçün ssenari istiqaməti: 'away' (2/2<1/1), 'home' (1/1<2/2), ya da null (heç biri/bərabər/məlumat yoxdur)
+  let scenarioDir = null;
+  if(htft11Boost && htft22Boost){
+    if(htft22Boost.value < htft11Boost.value) scenarioDir = 'away';
+    else if(htft11Boost.value < htft22Boost.value) scenarioDir = 'home';
+  }
+  const rescoreConds = conditions.filter(c => {
+    if(SIMILAR_NO_RESCORE_KEYS.includes(c.key)){
+      if(isBalancedMatch && c.key === 'MSX') return true; // dənk matçda MSX-i də incə sıralamaya qat
+      if(isAwayFavored && c.key === 'MS2') return true;   // qonaq-favorit ssenarisində MS2-ni də qat
+      return false;
+    }
+    return true;
+  });
+
+  /* ---- Təbəqə 1: Sərt Oyun-Profili Lövbəri ---- */
+  let idxSet, usedTol;
+  if(anchorConds.length === 0){
+    idxSet = pool ? pool.slice() : Array.from({length:n}, (_,i)=>i);
+    usedTol = null;
+  } else {
+    usedTol = SIMILAR_ANCHOR_TOL;
+    idxSet = similarFilterAnchors(anchorConds, usedTol, pool);
+
+    const htft11Cond = conditions.find(c => c.key === 'HTFT11');
+    if(htft11Cond && htft11Cond.value < 3.00){
+      idxSet = idxSet.filter(i => {
+        const R = computeResultRow(i);
+        return R && R.iyres === 'Home';
+      });
+    }
+  }
+
+  /* ---- Təbəqə 2: Matç Temposu / Skor-Profil Süzgəci ---- */
+  const ust25Cond = conditions.find(c => c.key === 'UST2_5');
+  const kgvarCond = conditions.find(c => c.key === 'KGVAR');
+  if(ust25Cond && kgvarCond && ust25Cond.value < 1.85 && kgvarCond.value < 1.85){
+    idxSet = idxSet.filter(i => {
+      const R = computeResultRow(i);
+      return R && R.fty25 === 'Over'; // ümumi qol ≥ 3 (tam ədəd olduğu üçün >2.5 ⇔ ≥3)
+    });
+  }
+
+  if(idxSet.length === 0){
+    renderSimilarMatchesResult([], scopeLabel, usedTol, conditions, 0);
+    return;
+  }
+
+  /* ---- Təbəqə 3: Çəkili Oxşarlıq (Step B) ---- */
+  const weighted = idxSet.map(i => {
+    let maxScore = 0, gotScore = 0;
+    for(const c of rescoreConds){
+      let w;
+      if(isBalancedMatch && SIMILAR_BALANCED_BOOST_KEYS.includes(c.key)){
+        w = SIMILAR_BALANCED_BOOST_WEIGHT; // dənk matç düzəlişi
+      } else if(isAwayFavored && SIMILAR_AWAY_BOOST_KEYS.includes(c.key)){
+        w = SIMILAR_AWAY_BOOST_WEIGHT; // qonaq favoritliyi düzəlişi
+      } else {
+        w = SIMILAR_TOP_WEIGHT_KEYS.includes(c.key) ? 3
+          : (SIMILAR_HIGH_WEIGHT_KEYS.includes(c.key) ? 2
+          : (SIMILAR_MED_WEIGHT_KEYS.includes(c.key) ? 1 : 0));
+      }
+      if(w === 0) continue;
+      maxScore += w;
+      const arr = DB.oddsA[c.key];
+      const v = arr ? arr[i] : null;
+      if(v == null || !c.value) continue;
+      const diff = Math.abs(v - c.value) / c.value;
+      const sim = Math.max(0, 1 - diff / SIMILAR_SECONDARY_REF_TOL);
+      gotScore += w * sim;
+    }
+    const pct = maxScore ? (gotScore / maxScore * 100) : 100;
+
+    // Dinamik İstiqamət Bonusu: Uyğunluq %-i (pct) EKRANDA dəyişməz qalır,
+    // amma sıralama üçün ayrıca "sortScore" faktiki MS nəticəsinə görə tənzimlənir.
+    let dirBonus = 0;
+    if(scenarioDir){
+      const R = computeResultRow(i);
+      const msres = R ? R.msres : null;
+      if((scenarioDir === 'away' && msres === 'Away') || (scenarioDir === 'home' && msres === 'Home')){
+        dirBonus = SIMILAR_DIR_BONUS;
+      } else if(msres === 'Draw'){
+        dirBonus = SIMILAR_DIR_DRAW_BONUS;
+      } else if(msres){
+        dirBonus = -SIMILAR_DIR_PENALTY;
+      }
+    }
+
+    return { idx: i, pct, sortScore: pct + dirBonus, totalGoals: similarTotalGoals(i) };
+  });
+
+  /* ---- Təbəqə 4: Dəqiq Skor Klasterlənməsi və Sərt Top-10 ---- */
+  const expGoals = similarExpectedGoals(conditions);
+  weighted.sort((a, b) => {
+    if(Math.abs(b.sortScore - a.sortScore) > 0.01) return b.sortScore - a.sortScore;
+    if(expGoals != null && a.totalGoals != null && b.totalGoals != null){
+      return Math.abs(a.totalGoals - expGoals) - Math.abs(b.totalGoals - expGoals);
+    }
+    return 0;
+  });
+  // Elastik seçim: minimum SIMILAR_MIN_RESULTS həmişə götürülür (varsa),
+  // bundan sonra isə yalnız keyfiyyət (Uyğunluq %) SIMILAR_QUALITY_MIN_PCT-dən
+  // yuxarı qaldığı müddətcə əlavə olunur — süni şəkildə 10-a tamamlanmır.
+  const top = weighted.slice(0, SIMILAR_MIN_RESULTS);
+  for(let idx = SIMILAR_MIN_RESULTS; idx < Math.min(weighted.length, SIMILAR_MAX_RESULTS); idx++){
+    if(weighted[idx].pct >= SIMILAR_QUALITY_MIN_PCT) top.push(weighted[idx]);
+    else break;
+  }
+
+  window.LAST_AUTO_LABEL = conditions.map(c => (LABELS[c.key]||c.key) + ': ' + c.value).join(' · ') + ' (Oxşar Matçlar)';
+  LAST_AUTO_COMBOS = [{ ids: conditions.map(c=>c.key), idxSet: top.map(w=>w.idx), count: idxSet.length }];
+
+  renderSimilarMatchesResult(top, scopeLabel, usedTol, conditions, idxSet.length);
+}
+
+function similarityPillHtml(pct){
+  const color = pct>=85 ? 'var(--teal)' : (pct>=65 ? 'var(--amber)' : 'var(--red)');
+  return `<span class="pill" style="min-width:56px; justify-content:center; background:${color};">${pct.toFixed(0)}%</span>`;
+}
+
+function similarRowHtml(w){
+  const i = w.idx;
+  const R = computeResultRow(i);
+  let resultCells = '';
+  if(R){
+    resultCells += pillCellHtml('hy05', R.hy05, R.hy05==='Over'?'over':'under');
+    resultCells += pillCellHtml('hy15', R.hy15, R.hy15==='Over'?'over':'under');
+    resultCells += pillCellHtml('fty15', R.fty15, R.fty15==='Over'?'over':'under');
+    resultCells += pillCellHtml('fty25', R.fty25, R.fty25==='Over'?'over':'under');
+    resultCells += pillCellHtml('fty35', R.fty35, R.fty35==='Over'?'over':'under');
+    resultCells += pillCellHtml('kg', R.kg, R.kg==='Yes'?'yes':'no');
+    resultCells += scoreCellHtml('htscore', R.htscore);
+    resultCells += scoreCellHtml('h2score', R.h2score);
+    resultCells += scoreCellHtml('ftscore', R.ftscore);
+    resultCells += pillCellHtml('iyres', R.iyres, R.iyClass);
+    resultCells += pillCellHtml('msres', R.msres, R.msClass);
+  } else {
+    resultCells = '<td></td>'.repeat(11);
+  }
+  return `<tr>
+    <td style="text-align:center;">${similarityPillHtml(w.pct)}</td>
+    <td class="league" ondblclick="fillLeagueFilter('${escLeague(DB.meta.league[i])}')" title="İki dəfə klik → liqa filtrinə əlavə et">${DB.meta.league[i]||''}</td>
+    <td class="team-cell" ondblclick="fillMetaFilter('home','${escLeague(DB.meta.home[i])}')" title="İki dəfə klik → ev sahibi filtrinə əlavə et">${DB.meta.home[i]||''}</td>
+    <td class="team-cell" ondblclick="fillMetaFilter('away','${escLeague(DB.meta.away[i])}')" title="İki dəfə klik → deplasman filtrinə əlavə et">${DB.meta.away[i]||''}</td>
+    ${resultCells}
+  </tr>`;
+}
+
+function renderSimilarMatchesResult(top, scopeLabel, usedTol, conditions, anchorTotal){
+  const area = document.getElementById('autoResultsArea');
+  if(!top.length){
+    area.innerHTML = '<div class="empty-state"><div class="big">Oxşar matç tapılmadı</div><div>Fərqli əmsallar sınamağı və ya liqa filtrini "Bütün Liqalar"a dəyişməyi sına</div></div>';
+    return;
+  }
+  const label = conditions.map(c => (LABELS[c.key]||c.key) + ': ' + c.value).join(' · ');
+  const tolTxt = usedTol==null ? '—' : ('±' + usedTol.toFixed(2));
+  const rows = top.map(similarRowHtml).join('');
+
+  area.innerHTML = `<div class="auto-panel">
+    <h3>🔎 Oxşar Matçlar <span style="color:var(--text-faint); font-weight:400; font-size:12px;">· ${scopeLabel||'bütün liqalar'} · lövbər toleransı ${tolTxt} · ${anchorTotal} matç lövbərdən keçdi, ən yaxın ${top.length} göstərilir</span></h3>
+    <div style="font-family:var(--mono); color:var(--amber); font-size:12px; margin-bottom:14px; line-height:1.6;">${label}</div>
+    <div class="table-scroll"><table class="grid">
+      <thead><tr>
+        <th>Uyğ.%</th><th>Liqa</th><th>Ev</th><th>Qonaq</th>
+        <th>1Y/0.5</th><th>1Y/1.5</th><th>MS/1.5</th><th>MS/2.5</th><th>MS/3.5</th><th>K/G</th>
+        <th>1Y Skor</th><th>2Y Skor</th><th>MS Skor</th><th>1Y Nəticə</th><th>MS Nəticə</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">
+      <button class="btn btn-run" onclick="showComboMatches(0)">📋 Əsas Səhifədə Göstər</button>
+      ${_isAdminNow() ? '<button class="btn" style="background:var(--navy-3); color:var(--gold-2); border:1px solid var(--line2);" onclick="saveAnalysisAuto(0)">💾 Kaydet</button>' : ''}
+    </div>
+  </div>`;
+}
+
+function _isAdminNow(){ return typeof CURRENT_USER !== 'undefined' && CURRENT_USER && typeof ADMIN_UID !== 'undefined' && CURRENT_USER.uid === ADMIN_UID; }
+
+function renderTightComboResult(best, scopeLabel){
+  const area = document.getElementById('autoResultsArea');
+  if(!best){
+    area.innerHTML = '<div class="auto-panel" style="position:relative;"><button onclick="closeAutoResults()" title="Bağla" style="position:absolute; top:14px; right:14px; background:var(--navy-3); color:var(--text-dim); border:1px solid var(--line2); border-radius:8px; width:30px; height:30px; font-size:16px; cursor:pointer; line-height:1;">×</button><div class="empty-state"><div class="big">Şərtlərə cavab verən güclü kombinasiya tapılmadı</div><div>Ən azı 5 şərtdən ibarət, ən azı 5 matçda rast gəlinən və içində təkrarlanan skoru olan kombinasiya tapılmadı</div></div></div>';
+    return;
+  }
+  const label = best.ids.map(k => LABELS[k]||k).join(' + ');
+  const stats = computeProbabilityStats(best.idxSet);
+
+  const scoreChips = best.idxSet.map(i => DB.meta.ms[i]).sort().map(s =>
+    `<span class="parsed-chip" style="font-size:13px; font-weight:700; color:var(--teal); border-color:var(--teal-dim);">${s}</span>`
+  ).join(' ');
+
+  const rows = stats.map(s=>{
+    const barColor = s.pct>=70 ? 'var(--teal)' : (s.pct>=40 ? 'var(--amber)' : 'var(--red)');
+    return `<div class="dist-row">
+      <div class="lbl" style="width:230px; text-align:left; font-weight:600; white-space:normal;">${s.label}</div>
+      <div class="track"><div class="fill" style="width:${s.pct}%; background:${barColor};"></div></div>
+      <div class="pct" style="width:52px;">${s.pct.toFixed(0)}%</div>
+    </div>`;
+  }).join('');
+
+  const confClass = best.pct>=70 ? 'high' : (best.pct>=45 ? 'mid' : 'low');
+  const confLabel = best.pct>=70 ? 'Güclü' : (best.pct>=45 ? 'Orta' : 'Zəif');
+
+  area.innerHTML = `<div class="auto-panel" style="position:relative;">
+    <button onclick="closeAutoResults()" title="Bağla" style="position:absolute; top:14px; right:14px; background:var(--navy-3); color:var(--text-dim); border:1px solid var(--line2); border-radius:8px; width:30px; height:30px; font-size:16px; cursor:pointer; line-height:1;">×</button>
+    <h3>Tapılan Kombinasiya <span style="color:var(--text-faint); font-weight:400; font-size:12px;">· ${scopeLabel||'bütün liqalar'}</span></h3>
+    <div style="font-family:var(--mono); color:var(--amber); font-size:12px; margin-bottom:18px; line-height:1.6;">${label}</div>
+    <div class="hero-score">
+      <div class="hero-score-main">
+        <div class="hero-score-num">${best.top}</div>
+        <div class="hero-score-lbl">Ən çox görülən skor <span class="conf-badge ${confClass}">${confLabel}</span></div>
+      </div>
+      <div class="hero-score-sub">
+        <div><div class="hs-num">${best.pct.toFixed(1)}%</div><div class="hs-lbl">Konsentrasiya</div></div>
+        <div><div class="hs-num">${best.count}</div><div class="hs-lbl">Uyğun matç</div></div>
+      </div>
+    </div>
+    <div style="margin:18px 0; line-height:2.1;">${scoreChips}</div>
+    ${stats.length ? `<div>${rows}</div>` : ''}
+    <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">
+      <button class="btn btn-run" onclick="showComboMatches(0)">Uyğun Matçları Göstər</button>
+      ${_isAdminNow() ? '<button class="btn" style="background:var(--navy-3); color:var(--gold-2); border:1px solid var(--line2);" onclick="saveAnalysisAuto(0)">💾 Kaydet</button>' : ''}
+    </div>
+  </div>`;
+  window.LAST_AUTO_LABEL = label;
+}
+
+function closeAutoResults(){
+  const area = document.getElementById('autoResultsArea');
+  if(area) area.innerHTML = '';
+}
+
+function showComboMatches(i){
+  const combo = LAST_AUTO_COMBOS[i];
+  if(!combo) return;
+  switchTab('manual');
+  document.getElementById('scoreboard').innerHTML = `
+    <div class="sb-card amber"><div class="num">${combo.count}</div><div class="lbl">Uyğun Matç</div></div>
+    <div class="sb-card ${combo.pct>=70?'green':'amber'}"><div class="num">${combo.top||'—'}</div><div class="lbl">Ən Çox Görülən Skor</div></div>
+  `;
+  updateTableBody(combo.idxSet.slice(0,150));
+
+  // Filtr tabındakı "Kaydet" düyməsi bundan sonra elə bu (avtomatik analizdən
+  // gələn) nəticəni saxlasın, köhnə/əvvəlki filtrin nəticəsini yox.
+  window.LAST_MANUAL_IDX = combo.idxSet;
+  window.LAST_MANUAL_LABEL = window.LAST_AUTO_LABEL || (combo.ids ? combo.ids.map(k => LABELS[k]||k).join(' + ') : 'Avtomatik kombinasiya');
+}
+
+const LABELS = {
+  MS1:'MS 1',MSX:'MS X',MS2:'MS 2', IY1:'İY 1',IYX:'İY X',IY2:'İY 2',
+  IIY1:'2Y 1',IIYX:'2Y X',IIY2:'2Y 2',
+  UST1_5:'1.5Ü',ALT1_5:'1.5A',UST2_5:'2.5Ü',ALT2_5:'2.5A',UST3_5:'3.5Ü',ALT3_5:'3.5A',
+  AHm05_1:'Asya-0.5(1)',AHm05_2:'Asya-0.5(2)',AH0_1:'Asya0(1)',AH0_2:'Asya0(2)',AHp05_1:'Asya+0.5(1)',AHp05_2:'Asya+0.5(2)',
+  KGVAR:'KGVar',KGYOK:'KGYok',IKGVAR:'İY-KGVar',IKGYOK:'İY-KGYok',
+  DC1X:'ÇŞ1X',DC12:'ÇŞ12',DCX2:'ÇŞX2', IDC1X:'İY-ÇŞ1X',IDC12:'İY-ÇŞ12',IDCX2:'İY-ÇŞX2',
+  EH1:'AvHand1',EHX:'AvHandX',EH2:'AvHand2',
+  HTFT11:'HT/FT1/1',HTFT1X:'HT/FT1/X',HTFT12:'HT/FT1/2',HTFTX1:'HT/FTX/1',HTFTXX:'HT/FTX/X',HTFTX2:'HT/FTX/2',
+  HTFT21:'HT/FT2/1',HTFT2X:'HT/FT2/X',HTFT22:'HT/FT2/2',
+};
+
+
+
+</script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="analyses.js"></script>
+<script src="auth.js"></script>
+<script src="filters.js"></script>
+<script src="today-matches.js"></script>
+</body>
+</html>
